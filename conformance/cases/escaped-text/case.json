@@ -1,0 +1,29 @@
+{
+  "description": "Text that a spreadsheet application could evaluate is escaped with an apostrophe; plain numbers are not.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [],
+    "level": "acceptable",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "Notes.csv": "\ntext\n\nnote\n'=total\n'@SUM(A1)\n'+1 555 0100\n-400\n''quoted'\n'psosf:=x\n",
+      "manifest.json": "{\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"name\": \"Conformance\",\n  \"sheets\": [\n    \"Accounts\",\n    \"Notes\"\n  ]\n}\n"
+    }
+  },
+  "name": "escaped-text",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  },
+  "round-trip": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "Notes.csv": "\ntext\n\nnote\n'=total\n'@SUM(A1)\n'+1 555 0100\n-400\n''quoted'\n'psosf:=x\n",
+      "manifest.json": "{\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"name\": \"Conformance\",\n  \"sheets\": [\n    \"Accounts\",\n    \"Notes\"\n  ]\n}\n"
+    }
+  }
+}

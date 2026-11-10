@@ -1,0 +1,49 @@
+{
+  "description": "Path traversal, a file outside the format, and names that differ only in case.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "path-traversal",
+        "file": "../evil.csv"
+      },
+      {
+        "code": "unexpected-entry",
+        "file": "../evil.csv"
+      },
+      {
+        "code": "unexpected-entry",
+        "file": "tests/x/notes.txt"
+      },
+      {
+        "code": "unexpected-entry",
+        "file": "Accounts.CSV"
+      },
+      {
+        "code": "case-collision",
+        "file": "Accounts.CSV"
+      },
+      {
+        "code": "missing-test-json",
+        "file": "tests/x/test.json"
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "../evil.csv": "x",
+      "Accounts.CSV": "x",
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"name\": \"Conformance\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n",
+      "tests/x/notes.txt": "x"
+    }
+  },
+  "name": "hostile-names",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

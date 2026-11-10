@@ -1,0 +1,22 @@
+{
+  "description": "Bytes that are not a ZIP archive.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "bad-zip"
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "zip": "archive.psosf"
+  },
+  "name": "zip-not-a-zip",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

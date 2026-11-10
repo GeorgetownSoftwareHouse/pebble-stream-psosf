@@ -1,0 +1,28 @@
+{
+  "description": "A cell that begins with a trigger character without escaping.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "unescaped-trigger",
+        "column": "negative",
+        "file": "Accounts.csv",
+        "line": 5
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,@SUM(A1)\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"name\": \"Conformance\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n"
+    }
+  },
+  "name": "unescaped-trigger",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

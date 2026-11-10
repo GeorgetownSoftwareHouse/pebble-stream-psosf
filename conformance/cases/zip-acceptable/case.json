@@ -1,0 +1,18 @@
+{
+  "description": "A well-formed archive read from its ZIP container.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [],
+    "level": "acceptable",
+    "warnings": []
+  },
+  "input": {
+    "zip": "archive.psosf"
+  },
+  "name": "zip-acceptable",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

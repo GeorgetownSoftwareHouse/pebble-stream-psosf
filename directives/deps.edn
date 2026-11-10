@@ -1,0 +1,11 @@
+;; The psosf-directives library: the PebbleScript directive registry and the
+;; directive string parser.
+{:paths ["src"]
+ :deps  {org.clojure/clojure {:mvn/version "1.11.4"}
+         metosin/malli       {:mvn/version "0.16.4"}}
+ :aliases
+ {;; clojure -M:test   (from directives/)
+  :test {:extra-paths ["test"]
+         :main-opts   ["-m" "runner"
+                       "pebblestream.parse-str-test"
+                       "pebblestream.directives.schema-test"]}}}

@@ -1,0 +1,10 @@
+;; The psosf library: no dependencies beyond Clojure.
+{:paths ["src"]
+ :deps  {org.clojure/clojure {:mvn/version "1.11.4"}}
+ :aliases
+ {;; clojure -M:test
+  :test  {:extra-paths ["test"]
+          :main-opts   ["-m" "runner" "psosf.core-test" "psosf.model-test" "psosf.conformance-test"]}
+  ;; clojure -T:build <task>   (see build.clj)
+  :build {:deps       {io.github.clojure/tools.build {:git/tag "v0.10.5" :git/sha "2a21b7a"}}
+          :ns-default build}}}

@@ -1,0 +1,26 @@
+{
+  "description": "A manifest that is not valid JSON.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "bad-json",
+        "file": "manifest.json"
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{oops"
+    }
+  },
+  "name": "manifest-not-json",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "description": "A malformed namespace, license and export.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "bad-namespace",
+        "file": "manifest.json"
+      },
+      {
+        "code": "bad-license",
+        "file": "manifest.json"
+      },
+      {
+        "code": "bad-export",
+        "file": "manifest.json"
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"export\": {\n    \"mode\": \"tiny\"\n  },\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"license\": {\n    \"name\": \"MIT\"\n  },\n  \"name\": \"Conformance\",\n  \"namespace\": \"Com.Example\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n"
+    }
+  },
+  "name": "manifest-field-shapes",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

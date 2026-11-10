@@ -1,0 +1,28 @@
+{
+  "description": "A deprecated directive is acceptable, with a warning.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [],
+    "level": "acceptable",
+    "warnings": [
+      {
+        "code": "deprecated-directive",
+        "column": "id",
+        "file": "Accounts.csv",
+        "line": 1
+      }
+    ]
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "\"pebblestream:group-sum(\"\"id\"\")\",\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"name\": \"Conformance\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n"
+    }
+  },
+  "name": "deprecated-directive",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

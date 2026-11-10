@@ -1,0 +1,13 @@
+;; Builds the npm package: an ES module in dist/, with fflate kept as an import.
+{:source-paths ["src"]
+ :dependencies []
+ :builds
+ {:npm {:target     :esm
+        :output-dir "dist"
+        :js-options {:js-provider :import}
+        :modules    {:psosf {:exports {classify    psosf.js/classify
+                                       read        psosf.js/read
+                                       write       psosf.js/write
+                                       unzip       psosf.js/unzip
+                                       zip         psosf.js/zip
+                                       classifyZip psosf.js/classify-zip}}}}}}

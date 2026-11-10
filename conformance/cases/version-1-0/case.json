@@ -1,0 +1,24 @@
+{
+  "description": "An archive without a manifest is read under version 1.0 rules, where formulas begin with =.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [],
+    "level": "acceptable",
+    "warnings": [
+      {
+        "code": "version-1-0"
+      }
+    ]
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,=C2<0\n2,corporate,-400,=C3<0\n"
+    }
+  },
+  "name": "version-1-0",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

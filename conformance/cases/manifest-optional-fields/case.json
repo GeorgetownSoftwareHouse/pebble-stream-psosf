@@ -1,0 +1,27 @@
+{
+  "description": "Namespace, description, license and export are all accepted.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [],
+    "level": "acceptable",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"description\": \"Conformance case.\",\n  \"export\": {\n    \"input-row-limit\": 100,\n    \"mode\": \"compact\"\n  },\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"license\": {\n    \"name\": \"Apache License 2.0\",\n    \"spdx\": \"Apache-2.0\",\n    \"url\": \"https://www.apache.org/licenses/LICENSE-2.0\"\n  },\n  \"name\": \"Conformance\",\n  \"namespace\": \"com.example.ledger\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n"
+    }
+  },
+  "name": "manifest-optional-fields",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  },
+  "round-trip": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"description\": \"Conformance case.\",\n  \"export\": {\n    \"input-row-limit\": 100,\n    \"mode\": \"compact\"\n  },\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"license\": {\n    \"name\": \"Apache License 2.0\",\n    \"spdx\": \"Apache-2.0\",\n    \"url\": \"https://www.apache.org/licenses/LICENSE-2.0\"\n  },\n  \"name\": \"Conformance\",\n  \"namespace\": \"com.example.ledger\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n"
+    }
+  }
+}

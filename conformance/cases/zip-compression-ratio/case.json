@@ -1,0 +1,23 @@
+{
+  "description": "An entry that expands more than 100 times its compressed size.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "compression-ratio",
+        "file": "Accounts.csv"
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "zip": "archive.psosf"
+  },
+  "name": "zip-compression-ratio",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf/schema/psosf-api-v1.schema.json",
+  "title": "PSOSF library API, version 1",
+  "description": "The JSON shapes every PSOSF language binding accepts and returns. Requests and results of classify, read and write, defined in psosf.api.",
+  "$defs": {
+    "entries": {
+      "description": "Archive path to file text.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "allowed-functions": {
+          "description": "Excel functions Pebble Stream accepts; compared without regard to case.",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "level": {
+      "enum": ["invalid", "valid", "acceptable"]
+    },
+    "finding": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "message": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "string", "description": "The header of the column the finding refers to." },
+        "fix": { "type": "string" }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "content": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["text", "formula"] },
+        "text": { "type": "string" }
+      },
+      "required": ["kind", "text"],
+      "additionalProperties": false
+    },
+    "annotation-line": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["directive", "comment"] },
+        "text": { "type": "string" }
+      },
+      "required": ["kind", "text"],
+      "additionalProperties": false
+    },
+    "column": {
+      "type": "object",
+      "properties": {
+        "header": { "type": "string" },
+        "type": { "type": "string", "description": "text, number, boolean or date in a valid archive." },
+        "annotation": { "type": "array", "items": { "$ref": "#/$defs/annotation-line" } },
+        "style": { "type": ["object", "null"] }
+      },
+      "required": ["header", "type", "annotation", "style"],
+      "additionalProperties": false
+    },
+    "sheet": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "columns": { "type": "array", "items": { "$ref": "#/$defs/column" } },
+        "rows": {
+          "type": "array",
+          "items": { "type": "array", "items": { "$ref": "#/$defs/content" } }
+        }
+      },
+      "required": ["name", "columns", "rows"],
+      "additionalProperties": false
+    },
+    "test": {
+      "type": "object",
+      "properties": {
+        "json": { "type": ["object", "null"] },
+        "inputs": { "$ref": "#/$defs/csv-files" },
+        "expected": { "$ref": "#/$defs/csv-files" }
+      },
+      "required": ["json", "inputs", "expected"],
+      "additionalProperties": false
+    },
+    "csv-files": {
+      "description": "Worksheet name to CSV text.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "archive": {
+      "type": "object",
+      "properties": {
+        "version": { "enum": ["1.0", "1.1"] },
+        "manifest": {
+          "description": "manifest.json as a JSON object, or null when absent or unreadable.",
+          "type": ["object", "null"]
+        },
+        "sheets": { "type": "array", "items": { "$ref": "#/$defs/sheet" } },
+        "tests": { "type": "object", "additionalProperties": { "$ref": "#/$defs/test" } },
+        "signatures": { "type": ["string", "null"] }
+      },
+      "required": ["version", "manifest", "sheets", "tests", "signatures"],
+      "additionalProperties": false
+    },
+    "classify-request": {
+      "type": "object",
+      "properties": {
+        "entries": { "$ref": "#/$defs/entries" },
+        "options": { "$ref": "#/$defs/options" }
+      },
+      "required": ["entries"],
+      "additionalProperties": false
+    },
+    "classify-result": {
+      "type": "object",
+      "properties": {
+        "level": { "$ref": "#/$defs/level" },
+        "errors": { "$ref": "#/$defs/findings" },
+        "warnings": { "$ref": "#/$defs/findings" },
+        "acceptance-errors": {
+          "description": "Why a valid archive is not acceptable. Empty unless level is valid.",
+          "$ref": "#/$defs/findings"
+        },
+        "archive": {
+          "description": "Absent when the ZIP container itself could not be read.",
+          "$ref": "#/$defs/archive"
+        }
+      },
+      "required": ["level", "errors", "warnings", "acceptance-errors"],
+      "additionalProperties": false
+    },
+    "read-request": {
+      "type": "object",
+      "properties": { "entries": { "$ref": "#/$defs/entries" } },
+      "required": ["entries"],
+      "additionalProperties": false
+    },
+    "read-result": {
+      "type": "object",
+      "properties": {
+        "archive": { "$ref": "#/$defs/archive" },
+        "errors": { "$ref": "#/$defs/findings" },
+        "warnings": { "$ref": "#/$defs/findings" }
+      },
+      "required": ["archive", "errors", "warnings"],
+      "additionalProperties": false
+    },
+    "write-request": {
+      "type": "object",
+      "properties": { "archive": { "$ref": "#/$defs/archive" } },
+      "required": ["archive"],
+      "additionalProperties": false
+    },
+    "write-result": {
+      "type": "object",
+      "properties": { "entries": { "$ref": "#/$defs/entries" } },
+      "required": ["entries"],
+      "additionalProperties": false
+    }
+  }
+}

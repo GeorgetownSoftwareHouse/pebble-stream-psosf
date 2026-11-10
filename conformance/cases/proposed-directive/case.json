@@ -1,0 +1,28 @@
+{
+  "description": "A directive that is specified but not yet available.",
+  "expect": {
+    "acceptance-errors": [
+      {
+        "code": "directive-not-available",
+        "column": "id",
+        "file": "Accounts.csv",
+        "line": 1
+      }
+    ],
+    "errors": [],
+    "level": "valid",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "\"pebblestream:http(\"\"FRED\"\", \"\"/x\"\")\",\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"name\": \"Conformance\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n"
+    }
+  },
+  "name": "proposed-directive",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

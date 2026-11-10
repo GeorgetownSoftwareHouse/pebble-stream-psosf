@@ -1,0 +1,63 @@
+;; Development tasks. Run `bb tasks` for the list.
+{:paths ["src" "test" "directives/src" "directives/test"]
+ :deps  {metosin/malli {:mvn/version "0.16.4"}}
+ :tasks
+ {:requires ([clojure.string :as string])
+
+  test:jvm
+  {:doc  "Run the psosf tests on the JVM (babashka)"
+   :task (do (require 'clojure.test 'psosf.core-test 'psosf.model-test 'psosf.conformance-test)
+             (let [{:keys [fail error]} (clojure.test/run-tests 'psosf.core-test 'psosf.model-test 'psosf.conformance-test)]
+               (when (pos? (+ fail error)) (System/exit 1))))}
+
+  test:directives
+  {:doc  "Run the directive parser and schema tests (babashka)"
+   :task (do (require 'clojure.test 'pebblestream.parse-str-test 'pebblestream.directives.schema-test)
+             (let [{:keys [fail error]} (clojure.test/run-tests 'pebblestream.parse-str-test
+                                                                'pebblestream.directives.schema-test)]
+               (when (pos? (+ fail error)) (System/exit 1))))}
+
+  test:cljs
+  {:doc  "Run the ClojureScript tests with nbb"
+   :task (shell "npx nbb --classpath src:test test/psosf/js_runner.cljs")}
+
+  test
+  {:doc     "Run every test suite"
+   :depends [test:jvm test:directives test:cljs]}
+
+  conformance:generate
+  {:doc  "Regenerate the conformance cases from conformance/generate.clj"
+   :task (shell "bb -cp src conformance/generate.clj")}
+
+  version:check
+  {:doc  "Fail if package.json and VERSION disagree"
+   :task (let [v   (string/trim (slurp "VERSION"))
+               pkg (second (re-find (re-pattern "\"version\":\\s*\"([^\"]+)\"") (slurp "package.json")))]
+           (when-not (= v pkg)
+             (println "VERSION is" v "but package.json is" pkg)
+             (System/exit 1)))}
+
+  jar
+  {:doc     "Build both jars with tools.build (needs the Clojure CLI and a JDK)"
+   :depends [version:check]
+   :task    (clojure "-T:build jar")}
+
+  install
+  {:doc     "Install both jars into the local Maven repository"
+   :depends [version:check]
+   :task    (clojure "-T:build install")}
+
+  npm
+  {:doc     "Build the npm package with shadow-cljs into dist/"
+   :depends [version:check]
+   :task    (do (shell "npm install")
+                (shell "npx shadow-cljs release npm"))}
+
+  build
+  {:doc     "Test everything, then build the jars and the npm package"
+   :depends [test jar npm]}
+
+  clean
+  {:doc  "Remove build output"
+   :task (do (clojure "-T:build clean")
+             (shell "rm -rf dist .shadow-cljs"))}}}

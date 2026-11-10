@@ -1,0 +1,34 @@
+{
+  "description": "Wrong format, unsupported version and no name.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "bad-format",
+        "file": "manifest.json"
+      },
+      {
+        "code": "unsupported-version",
+        "file": "manifest.json"
+      },
+      {
+        "code": "missing-name",
+        "file": "manifest.json"
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"format\": \"xlsx\",\n  \"format-version\": \"9\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n"
+    }
+  },
+  "name": "manifest-required-fields",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

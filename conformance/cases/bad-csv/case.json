@@ -1,0 +1,26 @@
+{
+  "description": "A worksheet file that is not valid CSV.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "bad-csv",
+        "file": "Accounts.csv"
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "\"unterminated,b\ntext,text\n",
+      "manifest.json": "{\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"name\": \"Conformance\",\n  \"sheets\": [\n    \"Accounts\"\n  ]\n}\n"
+    }
+  },
+  "name": "bad-csv",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}

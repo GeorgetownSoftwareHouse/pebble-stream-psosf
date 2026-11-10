@@ -1,0 +1,33 @@
+{
+  "name": "@pebblestream/psosf",
+  "version": "0.1.0",
+  "description": "Read, write, validate and classify Pebble Stream Open Spreadsheet Format (PSOSF) archives.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf.git"
+  },
+  "homepage": "https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf",
+  "keywords": ["psosf", "spreadsheet", "excel", "csv", "pebble-stream"],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./dist/psosf.js"
+    }
+  },
+  "types": "./index.d.ts",
+  "files": ["dist/", "index.d.ts", "LICENSE", "NOTICE", "README.md"],
+  "scripts": {
+    "build": "shadow-cljs release npm",
+    "test": "nbb --classpath src:test test/psosf/js_runner.cljs"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "nbb": "^1.3.0",
+    "shadow-cljs": "^3.5.0"
+  }
+}

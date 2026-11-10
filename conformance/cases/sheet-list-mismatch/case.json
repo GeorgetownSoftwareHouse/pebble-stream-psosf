@@ -1,0 +1,31 @@
+{
+  "description": "A listed sheet with no file, and a sheet file that is not listed.",
+  "expect": {
+    "acceptance-errors": [],
+    "errors": [
+      {
+        "code": "missing-sheet-file",
+        "file": "manifest.json"
+      },
+      {
+        "code": "unlisted-sheet",
+        "file": "Other.csv"
+      }
+    ],
+    "level": "invalid",
+    "warnings": []
+  },
+  "input": {
+    "entries": {
+      "Accounts.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "Other.csv": "Account identifier.,\"pebblestream:not-blank\nCustomer type.\",Balance.,pebblestream:fail\ntext,text,number,boolean\n,,,\nid,type,amount,negative\n1,individual,435,psosf:=C2<0\n2,corporate,-400,psosf:=C3<0\n",
+      "manifest.json": "{\n  \"format\": \"psosf\",\n  \"format-version\": \"1.1\",\n  \"name\": \"Conformance\",\n  \"sheets\": [\n    \"Accounts\",\n    \"Missing\"\n  ]\n}\n"
+    }
+  },
+  "name": "sheet-list-mismatch",
+  "options": {
+    "allowed-functions": [
+      "SUM"
+    ]
+  }
+}
