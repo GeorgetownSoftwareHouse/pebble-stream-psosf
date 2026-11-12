@@ -25,9 +25,9 @@
      pebblestream:allowed-values:a,b     colon (deprecated); arguments are
                                          separated by commas or colons
 
-   An unquoted argument that matches A1 notation is read as a cell reference,
-   so an unquoted header such as ID5 or Q1 is a reference, not a name.
-   `render` always quotes strings, so canonical text never has this problem."
+   A cell reference always names its worksheet (Inputs!B2). An unqualified
+   address such as ID5 or Q1 is read as a name, so headers that look like cell
+   addresses are never mistaken for references."
   (:require [clojure.string :as string]
             [pebblestream.parse-str :as ps]))
 
@@ -38,9 +38,9 @@
 (def ^:private prefix "pebblestream:")
 
 (def cell-ref-re
-  "One cell in A1 notation, optionally sheet-qualified and absolute.
-   The same pattern as :ps/cell-ref in the registry."
-  #"^(?:(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!)?\$?[A-Za-z]{1,3}\$?[0-9]+$")
+  "One cell in A1 notation, qualified by its worksheet name and optionally
+   absolute. The same pattern as :ps/cell-ref in the registry."
+  #"^(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!\$?[A-Za-z]{1,3}\$?[0-9]+$")
 
 (def ^:private number-re #"^-?[0-9]+(?:\.[0-9]+)?$")
 

@@ -271,7 +271,7 @@
     (and (map? v) (= #{"ref"} (set (keys v))) (string? (get v "ref")))
     (if (re-matches text/cell-ref-re (get v "ref"))
       {:value {:ref (get v "ref")}}
-      {:error (error :invalid-ref (str (pr-str path) " is not one cell in A1 notation: " (get v "ref")))})
+      {:error (error :invalid-ref (str (pr-str path) " is not one worksheet-qualified cell in A1 notation, such as Inputs!B2: " (get v "ref")))})
     :else
     {:error (error :invalid-value
                    (str (pr-str path) " must be a string, a number or a {\"ref\": ...} object."))}))

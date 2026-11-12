@@ -150,9 +150,12 @@ pebblestream:generate-rows('Run Settings'!$B$1)
 
 The object form keeps a reference distinct from a string that happens to look like one: `{"ref": "Inputs!B2"}` is a reference, while `"Inputs!B2"` is the literal text `Inputs!B2`.
 
+In textual PebbleScript, the worksheet name is what tells a reference from a name. A header such as `Q1` or `ID5` is also a valid cell address, so an unqualified address is always read as a name: `pebblestream:group(ID5)` groups by the header `ID5`, and `pebblestream:group(Setup!ID5)` groups by the header held in cell `ID5` of `Setup`.
+
 Rules:
 
-- `ref` holds one cell, optionally qualified by a sheet name and optionally absolute (`B2`, `$B$2`, `Inputs!B2`). A sheet name containing spaces or punctuation is enclosed in single quotes, with any single quote inside it doubled, as in Excel.
+- `ref` holds one cell, qualified by the name of its worksheet and optionally absolute (`Inputs!B2`, `Inputs!$B$2`, `'Run Settings'!$B$1`). The worksheet name is required. A sheet name containing spaces or punctuation is enclosed in single quotes, with any single quote inside it doubled, as in Excel.
+- A cell address without a worksheet name, such as `B2`, is not a reference.
 - A reference can stand anywhere a literal can, including inside arrays (`{"directive": "from", "sheets": [{"ref": "Setup!A2"}, "Accounts"]}`) and inside repeated groups.
 - In the catalog's key tables, each key's type describes the literal it accepts. Every key also accepts a reference.
 
@@ -201,7 +204,7 @@ The colon form (`pebblestream:name:a,b`) is deprecated and is never produced.
 
 A converter accepts every form textual PebbleScript allows: bare, parentheses, and the deprecated colon form. Which form was used is not recorded in JSON Notation.
 
-A quoted argument becomes a string. A worksheet or column name that contains no space may also be written without quotes (`pebblestream:from(Accounts)`), and becomes the same string. An unquoted number becomes a number, an unquoted cell reference becomes a `{"ref": ...}` object, and an operator joined to a header with `&` becomes a column predicate object.
+A quoted argument becomes a string. A worksheet or column name that contains no space may also be written without quotes (`pebblestream:from(Accounts)`), and becomes the same string. An unquoted number becomes a number, an unquoted reference qualified by its worksheet name (`Inputs!B2`) becomes a `{"ref": ...}` object, and an operator joined to a header with `&` becomes a column predicate object. An unquoted cell address without a worksheet name, such as `Q1`, is a name and becomes a string.
 
 ### Quotes and backslashes in text
 
@@ -828,7 +831,7 @@ Because every argument is named and every repeated group is an array of objects,
 }
 ```
 
-Here `#/$defs/cell-ref` is an object with one required key, `ref`, whose value matches the A1 notation described under [Cell references](#cell-references), and no other keys.
+Here `#/$defs/cell-ref` is an object with one required key, `ref`, whose value is a worksheet-qualified cell reference as described under [Cell references](#cell-references), and no other keys.
 
 JSON Schema checks the shape of a directive. It cannot check rules that depend on the spreadsheet, such as whether `source-column` exists on the sheet named in `sheet`, or whether a directive's requires and excludes are satisfied by the other directives on the worksheet. The compiler checks those; submit the worksheet to the compiler service's validate endpoint before deploying.
 

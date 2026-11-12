@@ -93,11 +93,10 @@
 
 (def ^:private gen-ref
   (gen/fmap (fn [[sheet q? abs-c col abs-r row]]
-              {"ref" (str (when sheet
-                            (if q? (str "'" (string/replace sheet "'" "''") "'!")
-                                (str "S" (string/replace sheet #"[^A-Za-z0-9_.]" "") "!")))
+              {"ref" (str (if q? (str "'" (string/replace sheet "'" "''") "'!")
+                              (str "S" (string/replace sheet #"[^A-Za-z0-9_.]" "") "!"))
                           (when abs-c "$") col (when abs-r "$") row)})
-            (gen/tuple (gen/one-of [(gen/return nil) gen-sheet]) gen/boolean gen/boolean
+            (gen/tuple gen-sheet gen/boolean gen/boolean
                        (gen/fmap string/join (gen/vector (gen/elements "ABCXYZ") 1 3))
                        gen/boolean (gen/large-integer* {:min 1 :max 1048576}))))
 
@@ -243,9 +242,17 @@
   (is (contains? (warning-codes (n/text->json "pebblestream:group-sum(\"fund\")")) :deprecated-directive))
   (is (contains? (warning-codes (n/text->json "pebblestream:from(\"C:\\data\")")) :ambiguous-backslash)))
 
-(deftest unquoted-names-that-look-like-references
-  (testing "an unquoted argument in A1 notation is read as a cell reference, as the spec says"
-    (is (= {"directive" "group" "columns" [{"ref" "ID5"}]}
-           (:value (n/text->json "pebblestream:group(ID5)")))))
-  (testing "rendered text quotes the name, so it reads back as a name"
-    (is (= "pebblestream:group(\"ID5\")" (:value (n/json->text {"directive" "group" "columns" ["ID5"]}))))))
+(deftest references-are-worksheet-qualified
+  (testing "an unqualified address is a name"
+    (is (= {"directive" "group" "columns" ["ID5"]}
+           (:value (n/text->json "pebblestream:group(ID5)"))))
+    (is (= {"directive" "from" "sheets" ["Q1"]}
+           (:value (n/text->json "pebblestream:from(Q1)")))))
+  (testing "a qualified address is a reference"
+    (is (= {"directive" "group" "columns" [{"ref" "Setup!ID5"}]}
+           (:value (n/text->json "pebblestream:group(Setup!ID5)"))))
+    (is (= {"directive" "sort" "columns" [{"column" {"ref" "'Run Settings'!$B$1"} "order" "desc"}]}
+           (:value (n/text->json "pebblestream:sort('Run Settings'!$B$1:desc)")))))
+  (testing "an unqualified {\"ref\": ...} is refused"
+    (is (contains? (codes (n/json->text {"directive" "generate-rows" "count" {"ref" "B1"}})) :invalid-ref))
+    (is (contains? (codes (n/json->text {"directive" "generate-rows" "count" {"ref" "$B$1"}})) :invalid-ref))))

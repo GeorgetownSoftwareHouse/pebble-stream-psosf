@@ -140,9 +140,9 @@
 
    :ps/cell-ref
    [:map (merge {:closed true
-                 :description "A cell reference given in place of a literal argument, parsed as {:ref \"Inputs!B2\"}."}
+                 :description "A cell reference given in place of a literal argument, parsed as {:ref \"Inputs!B2\"}. Always qualified by its worksheet name."}
                 (ambiguous "Unclear whether ranges, named ranges, whole columns or formulas are accepted, and whether the referenced cell is read at compile time or run time."))
-    [:ref [:re "^(?:(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!)?\\$?[A-Za-z]{1,3}\\$?[0-9]+$"]]]
+    [:ref [:re "^(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!\\$?[A-Za-z]{1,3}\\$?[0-9]+$"]]]
 
    :ps/filter-data-type
    [:string (ambiguous "Likely an enum of data types (text, number, boolean, date); undocumented.")]
@@ -963,9 +963,8 @@
 (def syntax-ambiguities
   "Ambiguities about surface syntax that no single schema can carry."
   [{:where  [:syntax :cell-references]
-    :reason (str "Any argument may be a cell reference. Assumed written unquoted in text (Inputs!B2), "
-                 "as in an Excel formula, so quoting is what distinguishes a reference from a string. "
-                 "Unconfirmed, as is whether a reference may be combined with literals (\">\"&Inputs!B2).")}
+    :reason (str "Any argument may be a worksheet-qualified cell reference, written unquoted in text (Inputs!B2). "
+                 "Unconfirmed whether a reference may be combined with literals (\">\"&Inputs!B2).")}
    {:where  [:directive :div-0]
     :reason "Written pebblestream:div/0; keyed here as :div-0 because '/' cannot appear in a keyword's name."}
    {:where  [:directive :sheet-role]

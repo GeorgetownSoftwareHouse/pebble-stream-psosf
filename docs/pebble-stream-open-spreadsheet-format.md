@@ -645,7 +645,7 @@ PSOSF itself cannot represent most of these: it has no hyperlink records, connec
 
 ### PebbleScript
 
-Directive arguments that are [cell references](#cell-references) must refer to cells inside the spreadsheet. A reference to another workbook, a URL or a path is refused.
+Directive arguments that are cell references name their worksheet (`Inputs!B2`), as described in [PebbleScript JSON Notation](https://docs.pebblestream.com/docs/pebblescript-json-notation#cell-references), and must refer to cells inside the spreadsheet. A reference to another workbook, a URL or a path is refused.
 
 Connector directives (`http`, `sql`, `files`, `queue`, `email`) are the one sanctioned way for a Pebble Stream spreadsheet to exchange data with other systems. Unlike the channels above, they are declared in PebbleScript where a reviewer can see them, they run only in the Pebble Stream connector executor rather than in Excel, and they act only through connections and credentials the user has set up. Opening a workbook that contains a connector directive does nothing; the directive runs only when Pebble Stream executes the spreadsheet.
 
