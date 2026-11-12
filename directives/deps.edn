@@ -6,6 +6,9 @@
  :aliases
  {;; clojure -M:test   (from directives/)
   :test {:extra-paths ["test"]
+         :extra-deps  {org.clojure/test.check {:mvn/version "1.1.1"}
+                       cheshire/cheshire      {:mvn/version "5.13.0"}}
          :main-opts   ["-m" "runner"
                        "pebblestream.parse-str-test"
-                       "pebblestream.directives.schema-test"]}}}
+                       "pebblestream.directives.schema-test"
+                       "pebblestream.directives.notation-test"]}}}

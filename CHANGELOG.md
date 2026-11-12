@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `psosf-directives`: PebbleScript JSON Notation. `pebblestream.directives.notation` converts directive lines and whole header notes between textual PebbleScript and JSON Notation, in both directions, checked against the registry. `pebblestream.directives.text` parses a directive line (bare, parentheses or colon form) into the registry's parsed form and renders canonical text.
+- The registry's `id` directive accepts a cell reference as its group name, like every other argument.
+
 ## 0.1.0
 
 - Read, write and classify PSOSF archives on the JVM and in JavaScript.

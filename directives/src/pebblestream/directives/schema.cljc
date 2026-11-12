@@ -650,7 +650,8 @@
    ;; several keys on one worksheet.
    :id
    {:directive-type :annotative :syntax colon
-    :args [:cat [:? [:schema {:description "Key group name."} :string]]]}
+    ;; Like every argument, the group name may be a cell reference.
+    :args [:cat [:? [:schema {:description "Key group name."} [:or :string :ps/cell-ref]]]]}
 
    ;; How Flow divides the driving input worksheet among executions.
    :workflow-each  {:directive-type :annotative :syntax colon :excludes #{:workflow-all :workflow-group} :args no-args}

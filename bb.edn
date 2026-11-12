@@ -11,10 +11,12 @@
                (when (pos? (+ fail error)) (System/exit 1))))}
 
   test:directives
-  {:doc  "Run the directive parser and schema tests (babashka)"
-   :task (do (require 'clojure.test 'pebblestream.parse-str-test 'pebblestream.directives.schema-test)
+  {:doc  "Run the directive parser, schema and JSON Notation tests (babashka)"
+   :task (do (require 'clojure.test 'pebblestream.parse-str-test 'pebblestream.directives.schema-test
+                      'pebblestream.directives.notation-test)
              (let [{:keys [fail error]} (clojure.test/run-tests 'pebblestream.parse-str-test
-                                                                'pebblestream.directives.schema-test)]
+                                                                'pebblestream.directives.schema-test
+                                                                'pebblestream.directives.notation-test)]
                (when (pos? (+ fail error)) (System/exit 1))))}
 
   test:cljs

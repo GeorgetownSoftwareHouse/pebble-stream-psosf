@@ -126,7 +126,7 @@ Everything is portable `.cljc` except reading and writing the ZIP container. On 
 | Structural validation and the three levels | Done |
 | Signature verification and signing | Planned; archives with `signatures.json` are read, with a warning that signatures were not verified |
 | Building, traversing and editing (`psosf.model`) | Done |
-| PebbleScript text ⇄ JSON Notation | Planned |
+| PebbleScript text ⇄ JSON Notation | Done (in `psosf-directives`) |
 | npm package (JavaScript, TypeScript) | Done |
 | Native library and command line (Python, .NET, any language) | Planned |
 
@@ -144,7 +144,25 @@ String result = Psosf.classifyFile("account-balances.psosf", List.of("SUM", "IF"
 
 ## Directive library
 
-`com.pebblestream/psosf-directives` is a separate artifact holding the PebbleScript directive registry (a [Malli](https://github.com/metosin/malli) schema of every directive's signature, exclusions, execution order and status) and the directive string parser. The core library does not depend on it.
+`com.pebblestream/psosf-directives` is a separate artifact holding the PebbleScript directive registry (a [Malli](https://github.com/metosin/malli) schema of every directive's signature, exclusions, execution order and status), the directive line parser, and the converter between textual PebbleScript and [PebbleScript JSON Notation](https://docs.pebblestream.com/docs/pebblescript-json-notation). The core library does not depend on it.
+
+```clojure
+(require '[pebblestream.directives.notation :as n])
+
+(n/text->json "pebblestream:join(\"Rates\", \"id\", \"rate-id\")")
+;; => {:value {"directive" "join", "sheet" "Rates",
+;;             "on" [{"column" "id", "source-column" "rate-id"}]}
+;;     :errors [] :warnings []}
+
+(n/json->text {"directive" "group" "columns" ["fund"]})
+;; => {:value "pebblestream:group(\"fund\")" :errors [] :warnings []}
+
+;; A whole header note: directive and comment lines, in order
+(n/annotation->json "Totals by type.\npebblestream:group(\"type\")")
+(n/json->annotation [{"comment" "Totals by type."} {"directive" "group" "columns" ["type"]}])
+```
+
+Values are JSON-shaped (string keys), as any JSON reader produces. Both directions check the directive against the registry, so a value is returned only for a directive whose arguments fit its signature; otherwise `:errors` names each problem. Warnings report deprecated directives, the deprecated colon form, and backslashes that escape nothing. `json->text` always writes canonical text, which `text->json` reads back exactly; `pebblestream.directives.text` exposes the line parser and renderer on their own.
 
 ## Repository layout
 
@@ -154,7 +172,7 @@ pebble-stream-psosf/
 ├── src/java/                  the Java entry point, compiled into the jar
 ├── test/                      JVM and ClojureScript tests, and the test runners
 ├── directives/
-│   ├── src/pebblestream/      the directive registry and string parser
+│   ├── src/pebblestream/      the directive registry, line parser and JSON Notation
 │   └── test/                  their tests
 ├── conformance/               language-neutral cases every binding must pass
 ├── schema/                    the JSON Schema of the API contract, version 1
