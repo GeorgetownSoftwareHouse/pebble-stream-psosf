@@ -623,12 +623,16 @@ pebblestream:sorted("desc", 2)
 
 `allowed-values` stops execution if the column it annotates holds a value it does not permit. Each of its values is one of:
 
-- **A plain value**, text or a number, which permits that value. Text is quoted; a number is written without quotes.
-- **A comparison**, such as `">=0"` or `"<43"`: a comparison operator followed by the value to compare with, written as quoted text, as in a filter's literal predicates. Numbers compare numerically, and text compares alphabetically.
+- **A plain value**, text or a number, which means equal to that value. Text is quoted; a number is written without quotes.
+- **A comparison**, such as `">=0"`, `"<43"` or `"=75"`: a comparison operator followed by the value to compare with, written as quoted text, as in a filter's literal predicates. Numbers compare numerically, and text compares alphabetically.
 
-A directive's plain values permit any one of them. Its comparisons must all hold, so together they describe a range.
+A directive holds comparisons or plain values, never both:
 
-A column may carry more than one `allowed-values` directive. A value is permitted when any one of them permits it.
+- In a directive of comparisons, all of them must hold, so together they describe a range.
+- In a directive of plain values, the value must equal one of them.
+- A directive that mixes the two, such as `pebblestream:allowed-values(">80", 75)`, is refused. Put each kind in its own directive.
+
+A column may carry more than one `allowed-values` directive. A value is permitted when any one of them permits it, which is how a range and single values are combined.
 
 ```
 pebblestream:allowed-values("individual", "corporate")

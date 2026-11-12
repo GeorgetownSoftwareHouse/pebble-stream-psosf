@@ -312,3 +312,21 @@
       (is (= "pebblestream:filter(\"Note\", \"Say \\\u201Chi\\\u201D\")" t))
       (is (= m (:value (n/text->json t))))
       (is (empty? (:warnings (n/text->json t)))))))
+
+(deftest allowed-values-never-mixes-comparisons-and-plain-values
+  (testing "a directive of comparisons or of plain values converts"
+    (is (= {"directive" "allowed-values" "values" [">=0" "<43"]}
+           (:value (n/text->json "pebblestream:allowed-values(\">=0\", \"<43\")"))))
+    (is (= {"directive" "allowed-values" "values" ["=75" ">=80"]}
+           (:value (n/text->json "pebblestream:allowed-values(\"=75\", \">=80\")"))))
+    (is (= {"directive" "allowed-values" "values" [75 "seventy-five"]}
+           (:value (n/text->json "pebblestream:allowed-values(75, \"seventy-five\")")))))
+  (testing "a directive that mixes them is refused in both directions"
+    (doseq [line ["pebblestream:allowed-values(\">80\", 75)"
+                  "pebblestream:allowed-values:75:\">80\""
+                  "pebblestream:allowed-values(\"=75\", 70)"
+                  "pebblestream:allowed-values(\"aardvark\", \"<yak\")"]]
+      (is (contains? (codes (n/text->json line)) :signature) line))
+    (is (contains? (codes (n/json->text {"directive" "allowed-values" "values" [">70" 75]})) :signature)))
+  (testing "a cell reference is resolved at run time and does not count either way"
+    (is (empty? (:errors (n/text->json "pebblestream:allowed-values(\">=0\", Limits!B2)"))))))

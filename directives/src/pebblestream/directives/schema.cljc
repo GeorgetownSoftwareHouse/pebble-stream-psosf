@@ -76,6 +76,25 @@
   "Excel's sheet-name rules: 1–31 characters, none of \\ / ? * [ ] :"
   [:re "^[^\\\\/?*\\[\\]:]{1,31}$"])
 
+;; ========================================================
+;; allowed-values
+;; ========================================================
+
+(def ^:private comparison-re #"^(?:<=|>=|<>|<|>|=)")
+
+(defn allowed-values-comparison?
+  "True when an allowed-values argument is a comparison: text that begins with
+   an operator, such as \">=0\" or \"=75\"."
+  [x]
+  (and (string? x) (boolean (re-find comparison-re x))))
+
+(defn allowed-values-unmixed?
+  "True when an allowed-values directive's arguments are all comparisons or all
+   plain values. Cell references are resolved at run time and are not counted."
+  [args]
+  (let [plain? (fn [x] (or (number? x) (and (string? x) (not (allowed-values-comparison? x)))))]
+    (not (and (some allowed-values-comparison? args) (some plain? args)))))
+
 (def param-registry
   {:ps/sheet
    [:and {:description "The name of a worksheet in the same spreadsheet."}
@@ -107,11 +126,11 @@
    [:string {:description "The header of a column on the sheet named by the :pebblestream/sheet-ref parameter."}]
 
    :ps/allowed-value
-   [:or (merge {:description (str "A permitted value: text, a number, or a comparison such as \">=0\" or "
-                                  "\"<43\". A directive's comparisons must all hold; its plain values permit "
-                                  "any one of them. Separate allowed-values directives on a column combine with OR.")}
-               (ambiguous (str "How comparisons and plain values combine within one directive, and whether "
-                               "booleans and dates are accepted as typed literals, are unconfirmed.")))
+   [:or (merge {:description (str "A permitted value: text or a number, meaning equal to it, or a comparison "
+                                  "such as \">=0\" or \"<43\". A directive holds comparisons or plain values, "
+                                  "not both: its comparisons must all hold, or the value must equal one of its "
+                                  "plain values. Separate allowed-values directives on a column combine with OR.")}
+               (ambiguous "Whether booleans and dates are accepted as typed literals is unconfirmed."))
     :string number?]
 
    :ps/predicate
@@ -413,9 +432,15 @@
    :do-not-compile    {:directive-type :annotative :syntax colon :args no-args}
    :out               {:directive-type :annotative :syntax colon :args no-args}
 
+   ;; A directive holds comparisons or plain values, never both; see
+   ;; allowed-values-unmixed?.
    :allowed-values
    {:directive-type :annotative :syntax colon
-    :args [:+ (p :allowed-value)]}
+    :args [:and
+           [:+ (p :allowed-value)]
+           [:fn {:error/message (str "An allowed-values directive holds comparisons or plain values, not both. "
+                                     "Put each kind in its own allowed-values directive.")}
+            #'allowed-values-unmixed?]]}
 
    :hint
    {:directive-type :annotative :syntax colon
