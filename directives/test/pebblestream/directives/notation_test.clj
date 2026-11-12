@@ -330,3 +330,15 @@
     (is (contains? (codes (n/json->text {"directive" "allowed-values" "values" [">70" 75]})) :signature)))
   (testing "a cell reference is resolved at run time and does not count either way"
     (is (empty? (:errors (n/text->json "pebblestream:allowed-values(\">=0\", Limits!B2)"))))))
+
+(deftest allowed-values-blank-cells
+  (testing "the empty text is the plain value for blank cells"
+    (is (= {"directive" "allowed-values" "values" ["" "individual"]}
+           (:value (n/text->json "pebblestream:allowed-values(\"\", \"individual\")"))))
+    (is (= "pebblestream:allowed-values(\"\", \"individual\")"
+           (:value (n/json->text {"directive" "allowed-values" "values" ["" "individual"]})))))
+  (testing "as a plain value, it does not mix with comparisons"
+    (is (contains? (codes (n/text->json "pebblestream:allowed-values(\"\", \">=0\")")) :signature)))
+  (testing "blank is an ordinary word"
+    (is (= {"directive" "allowed-values" "values" ["blank"]}
+           (:value (n/text->json "pebblestream:allowed-values(blank)"))))))

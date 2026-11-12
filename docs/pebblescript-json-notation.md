@@ -623,7 +623,7 @@ pebblestream:sorted("desc", 2)
 
 `allowed-values` stops execution if the column it annotates holds a value it does not permit. Each of its values is one of:
 
-- **A plain value**, text or a number, which means equal to that value. Text is quoted; a number is written without quotes.
+- **A plain value**, text or a number, which means equal to that value. Text is quoted; a number is written without quotes. The empty text `""` permits blank cells; to refuse blank cells, use [`not-blank`](#directives-without-arguments).
 - **A comparison**, such as `">=0"`, `"<43"` or `"=75"`: a comparison operator followed by the value to compare with, written as quoted text, as in a filter's literal predicates. Numbers compare numerically, and text compares alphabetically.
 
 A directive holds comparisons or plain values, never both:

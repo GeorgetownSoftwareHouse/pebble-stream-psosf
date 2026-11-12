@@ -127,7 +127,7 @@
 
    :ps/allowed-value
    [:or (merge {:description (str "A permitted value: text or a number, meaning equal to it, or a comparison "
-                                  "such as \">=0\" or \"<43\". A directive holds comparisons or plain values, "
+                                  "such as \">=0\" or \"<43\". The empty text permits blank cells. A directive holds comparisons or plain values, "
                                   "not both: its comparisons must all hold, or the value must equal one of its "
                                   "plain values. Separate allowed-values directives on a column combine with OR.")}
                (ambiguous "Whether booleans and dates are accepted as typed literals is unconfirmed."))
