@@ -77,7 +77,7 @@
   "Characters that stress quoting and splitting: quotes, backslashes,
    separators, the predicate &, sort-suffix colons, sheet-name apostrophes,
    spaces, a non-breaking space and non-ASCII text."
-  (into (mapv str "abcXYZ019 _-.!$\"\\,()&:'\u00A0\té中") ["🙂"]))
+  (into (mapv str "abcXYZ019 _-.!$\"\\,()&:'\u00A0\té中\u201C\u201D\u2018\u2019") ["🙂"]))
 
 (def ^:private gen-text
   (gen/frequency
@@ -108,6 +108,7 @@
    [[9 (cond
          (numeric-keys key) (gen/large-integer* {:min 0 :max 100000})
          (sheet-keys key)   gen-sheet
+         (= "values" key)   (gen/one-of [gen-text (gen/large-integer* {:min -1000 :max 1000})])
          :else              gen-text)]
     [1 gen-ref]]))
 
@@ -256,3 +257,58 @@
   (testing "an unqualified {\"ref\": ...} is refused"
     (is (contains? (codes (n/json->text {"directive" "generate-rows" "count" {"ref" "B1"}})) :invalid-ref))
     (is (contains? (codes (n/json->text {"directive" "generate-rows" "count" {"ref" "$B$1"}})) :invalid-ref))))
+
+;; ========================================================
+;; The allowed-values example workbook
+;; ========================================================
+;;
+;; examples/Allowed-Values.xlsx in pebble-stream-documentation. Its notes were
+;; typed with typographic quotes, as Excel's notes often are.
+
+(deftest allowed-values-example-workbook
+  (testing "column A: 0 up to 43, or 75"
+    (is (= {"directive" "allowed-values" "values" ["<43" ">=0"]}
+           (:value (n/text->json "pebblestream:allowed-values:\u201D<43\u201D:\u201D>=0\u201D"))))
+    (is (= {"directive" "allowed-values" "values" [75]}
+           (:value (n/text->json "pebblestream:allowed-values:75")))))
+  (testing "column B: antelope up to yak, or aardvark or zebra"
+    (is (= {"directive" "allowed-values" "values" ["<yak" ">=antelope"]}
+           (:value (n/text->json "pebblestream:allowed-values:\u201D<yak\u201D:\u201D>=antelope\u201D"))))
+    (is (= {"directive" "allowed-values" "values" ["aardvark" "zebra"]}
+           (:value (n/text->json "pebblestream:allowed-values:\u201Daardvark\u201D:\u201Dzebra\u201D")))))
+  (testing "a whole note with a comment line"
+    (is (= [{"comment" "mark:"}
+            {"directive" "allowed-values" "values" ["<43" ">=0"]}
+            {"directive" "allowed-values" "values" [75]}]
+           (:value (n/annotation->json
+                    "mark:\npebblestream:allowed-values:\u201D<43\u201D:\u201D>=0\u201D\npebblestream:allowed-values:75")))))
+  (testing "numbers and text keep their types"
+    (is (= "pebblestream:allowed-values(75, \"75\")"
+           (:value (n/json->text {"directive" "allowed-values" "values" [75 "75"]}))))))
+
+;; ========================================================
+;; Typographic quotes
+;; ========================================================
+
+(deftest typographic-quotes
+  (testing "curly double quotes delimit strings, and two together are one quote"
+    (is (= (:value (n/text->json "pebblestream:filter(\"Product\", \"12\"\" pipe\")"))
+           (:value (n/text->json "pebblestream:filter(\u201CProduct\u201D, \u201C12\u201D\u201D pipe\u201D)")))))
+  (testing "curly single quotes enclose a reference's worksheet name"
+    (is (= {"directive" "generate-rows" "count" {"ref" "'Run Settings'!$B$1"}}
+           (:value (n/text->json "pebblestream:generate-rows(\u2018Run Settings\u2019!$B$1)"))))
+    (is (= {"directive" "sort" "columns" [{"column" {"ref" "'Run Settings'!B1"} "order" "desc"}]}
+           (:value (n/text->json "pebblestream:sort(\u2018Run Settings\u2019!B1:desc)")))))
+  (testing "an apostrophe inside a string or name is kept"
+    (is (= {"directive" "from" "sheets" ["O\u2019Brien"]}
+           (:value (n/text->json "pebblestream:from(\u201CO\u2019Brien\u201D)"))))
+    (is (= {"directive" "from" "sheets" ["O\u2019Brien"]}
+           (:value (n/text->json "pebblestream:from(O\u2019Brien)"))))
+    (is (= {"directive" "generate-rows" "count" {"ref" "'O\u2019Brien'!B1"}}
+           (:value (n/text->json "pebblestream:generate-rows('O\u2019Brien'!B1)")))))
+  (testing "a literal curly double quote is written with a backslash, without a warning"
+    (let [m {"directive" "filter" "conditions" [{"column" "Note" "predicate" "Say \u201Chi\u201D"}]}
+          t (:value (n/json->text m))]
+      (is (= "pebblestream:filter(\"Note\", \"Say \\\u201Chi\\\u201D\")" t))
+      (is (= m (:value (n/text->json t))))
+      (is (empty? (:warnings (n/text->json t)))))))

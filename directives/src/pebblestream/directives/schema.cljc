@@ -107,8 +107,12 @@
    [:string {:description "The header of a column on the sheet named by the :pebblestream/sheet-ref parameter."}]
 
    :ps/allowed-value
-   [:string (merge {:description "One permitted value for the column."}
-                   (ambiguous "Whether numbers, booleans and dates are accepted as typed literals or only as strings is undocumented."))]
+   [:or (merge {:description (str "A permitted value: text, a number, or a comparison such as \">=0\" or "
+                                  "\"<43\". A directive's comparisons must all hold; its plain values permit "
+                                  "any one of them. Separate allowed-values directives on a column combine with OR.")}
+               (ambiguous (str "How comparisons and plain values combine within one directive, and whether "
+                               "booleans and dates are accepted as typed literals, are unconfirmed.")))
+    :string number?]
 
    :ps/predicate
    [:or {:description (str "A condition applied to the preceding column: a literal predicate such as \">0\" "

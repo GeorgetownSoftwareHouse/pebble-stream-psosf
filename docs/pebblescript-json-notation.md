@@ -218,6 +218,16 @@ A backslash before any other character is removed, so `"C:\data"` reads as `C:da
 
 When converting JSON to text, a string is written with its quotes doubled and its backslashes doubled, so it always reads back exactly and never draws the warning. A name written without quotes must contain no space; quote any name that contains punctuation.
 
+### Typographic quotes
+
+Spreadsheet applications and operating systems often replace straight quotes with typographic ones as a note is typed, so `pebblestream:filter("Product", "12"" pipe")` may arrive as `pebblestream:filter(“Product”, “12”” pipe”)`. Both read the same way:
+
+- `“` and `”` are read as the straight double quote `"`. They open and close strings, and two together inside a string are one quote character.
+- `‘` and `’` are read as the straight single quote `'` where they enclose the worksheet name of a cell reference: `‘Run Settings’!$B$1` is `'Run Settings'!$B$1`. Anywhere else, including inside a string, they are ordinary characters, so `“O’Brien”` is the text `O’Brien`.
+- To include `“` or `”` in a string, write a backslash before it: `"Say \“hi\”"` is `Say “hi”`.
+
+When converting JSON to text, `“` and `”` in a string are written with a backslash, so the text reads back exactly.
+
 ### Round trips
 
 - **JSON → text → JSON** returns the same JSON, apart from key order.
@@ -611,6 +621,15 @@ pebblestream:sorted("desc", 2)
 
 #### allowed-values
 
+`allowed-values` stops execution if the column it annotates holds a value it does not permit. Each of its values is one of:
+
+- **A plain value**, text or a number, which permits that value. Text is quoted; a number is written without quotes.
+- **A comparison**, such as `">=0"` or `"<43"`: a comparison operator followed by the value to compare with, written as quoted text, as in a filter's literal predicates. Numbers compare numerically, and text compares alphabetically.
+
+A directive's plain values permit any one of them. Its comparisons must all hold, so together they describe a range.
+
+A column may carry more than one `allowed-values` directive. A value is permitted when any one of them permits it.
+
 ```
 pebblestream:allowed-values("individual", "corporate")
 ```
@@ -618,9 +637,21 @@ pebblestream:allowed-values("individual", "corporate")
 {"directive": "allowed-values", "values": ["individual", "corporate"]}
 ```
 
+This column permits any number from 0 up to, but not including, 43, and also 75:
+
+```
+pebblestream:allowed-values(">=0", "<43")
+pebblestream:allowed-values(75)
+```
+```json
+{"directive": "allowed-values", "values": [">=0", "<43"]}
+
+{"directive": "allowed-values", "values": [75]}
+```
+
 | Key | Type | Required | Text position |
 |---|---|---|---|
-| `values` | array, at least one | Yes | All arguments |
+| `values` | array of plain values (text or numbers) or comparisons, at least one | Yes | All arguments |
 
 #### hint
 

@@ -27,7 +27,9 @@
 
    A cell reference always names its worksheet (Inputs!B2). An unqualified
    address such as ID5 or Q1 is read as a name, so headers that look like cell
-   addresses are never mistaken for references."
+   addresses are never mistaken for references.
+
+   Typographic quotes are read as straight ones; see `normalize-quotes`."
   (:require [clojure.string :as string]
             [pebblestream.parse-str :as ps]))
 
@@ -48,6 +50,93 @@
 
 (defn- error [code message & {:as more}]
   (merge {:code code :message message} more))
+
+;; ========================================================
+;; Typographic quotes
+;; ========================================================
+;;
+;; Spreadsheet applications and operating systems replace straight quotes with
+;; typographic ones as a note is typed. Before a line is parsed:
+;;
+;;   “ and ” are read as " wherever a double quote may appear: they open and
+;;   close strings, and two together inside a string are one quote. A
+;;   backslash before one keeps it as a literal character.
+;;
+;;   ‘ and ’ are read as ' only where they open or close the worksheet name of
+;;   a cell reference: at the start of an argument, or just before !A1 at the
+;;   end of one. Anywhere else, including inside strings, they are ordinary
+;;   characters, so the apostrophe in O’Brien is kept.
+
+(def ^:private typographic-double #{\u201C \u201D})
+(def ^:private typographic-single #{\u2018 \u2019})
+
+(defn- double-quote? [c] (or (= \" c) (contains? typographic-double c)))
+
+(defn- argument-start?
+  "True when position i begins an argument: only whitespace lies between it
+   and the preceding ( , or :."
+  [s i]
+  (loop [j (dec i)]
+    (cond
+      (neg? j)                                false
+      (contains? #{\space \tab \u00A0} (nth s j)) (recur (dec j))
+      :else                                   (contains? #{\( \, \:} (nth s j)))))
+
+(defn- closes-sheet-name?
+  "True when position i is followed by !A1 and the end of the argument."
+  [s i]
+  (boolean (re-find #"^!\$?[A-Za-z]{1,3}\$?[0-9]+(?:\s*(?:[,):]|$))" (subs s (inc i)))))
+
+(defn normalize-quotes
+  "Rewrites the typographic quotes in a directive line as straight quotes,
+   following the rules above. A line without typographic quotes is unchanged.
+   A reference's quoted worksheet name is copied as it is, apart from its
+   enclosing quotes, so a double quote inside it opens no string."
+  [s]
+  (if-not (re-find #"[\u201C\u201D\u2018\u2019]" s)
+    s
+    (let [n (count s)]
+      (loop [i 0 mode :text out (transient [])]
+        (if (>= i n)
+          (apply str (persistent! out))
+          (let [c    (nth s i)
+                next (when (< (inc i) n) (nth s (inc i)))]
+            (case mode
+              :string
+              (cond
+                (and (= \\ c) next)                          (recur (+ i 2) :string (-> out (conj! c) (conj! next)))
+                (and (double-quote? c) next (double-quote? next)) (recur (+ i 2) :string (-> out (conj! \") (conj! \")))
+                (double-quote? c)                            (recur (inc i) :text (conj! out \"))
+                :else                                        (recur (inc i) :string (conj! out c)))
+
+              :sheet-name
+              (cond
+                (and (= \' c) (= \' next))                   (recur (+ i 2) :sheet-name (-> out (conj! \') (conj! \')))
+                (or (= \' c)
+                    (and (contains? typographic-single c)
+                         (closes-sheet-name? s i)))         (recur (inc i) :text (conj! out \'))
+                :else                                        (recur (inc i) :sheet-name (conj! out c)))
+
+              :text
+              (cond
+                (double-quote? c)
+                (recur (inc i) :string (conj! out \"))
+
+                (and (or (= \' c) (contains? typographic-single c)) (argument-start? s i))
+                (recur (inc i) :sheet-name (conj! out \'))
+
+                (and (contains? typographic-single c) (closes-sheet-name? s i))
+                (recur (inc i) :text (conj! out \'))
+
+                :else
+                (recur (inc i) :text (conj! out c))))))))))
+
+(defn quote-text
+  "Writes s as a quoted string argument that reads back as s: quote-str's
+   quoting, plus a backslash before each typographic double quote, so that it
+   is not read as a delimiter."
+  [s]
+  (string/replace (ps/quote-str s) #"[\u201C\u201D]" #(str "\\" %)))
 
 (defn directive-line?
   "True when a line of an annotation is PebbleScript: its first non-whitespace
@@ -251,7 +340,7 @@
    arguments fit its signature is checked by the registry
    (pebblestream.directives.schema/explain)."
   [line]
-  (let [s (string/trim line)]
+  (let [s (normalize-quotes (string/trim line))]
     (if-not (string/starts-with? s prefix)
       {:errors [(error :not-a-directive "A directive line begins with pebblestream:.")] :warnings []}
       (let [body (subs s (count prefix))
@@ -295,16 +384,16 @@
      :cljs (str x)))
 
 (defn- render-column [c]
-  (if (map? c) (:ref c) (ps/quote-str c)))
+  (if (map? c) (:ref c) (quote-text c)))
 
 (defn render-arg
   "Writes one parsed argument in canonical text."
   [x]
   (cond
-    (string? x)                     (ps/quote-str x)
+    (string? x)                     (quote-text x)
     (number? x)                     (render-number x)
     (contains? x :ref)              (:ref x)
-    (contains? x :operator)         (str (ps/quote-str (:operator x)) "&" (render-column (:column x)))
+    (contains? x :operator)         (str (quote-text (:operator x)) "&" (render-column (:column x)))
     (contains? x :order)            (str (render-column (:column x)) ":" (name (:order x)))
     :else (throw (ex-info "Cannot render argument" {:arg x}))))
 

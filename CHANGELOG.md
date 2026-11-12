@@ -4,6 +4,8 @@
 
 - `psosf-directives`: PebbleScript JSON Notation. `pebblestream.directives.notation` converts directive lines and whole header notes between textual PebbleScript and JSON Notation, in both directions, checked against the registry. `pebblestream.directives.text` parses a directive line (bare, parentheses or colon form) into the registry's parsed form and renders canonical text.
 - Cell references in directive arguments are always qualified by their worksheet name (`Inputs!B2`). An unqualified address such as `Q1` or `ID5` is a name. Both specifications, the registry's `:ps/cell-ref` and the line parser follow this rule.
+- Typographic quotes in textual PebbleScript: `“` and `”` are read as `"`, and `‘` and `’` as `'` where they enclose a reference's worksheet name, so notes typed with automatic smart quotes parse as intended. A literal `“` or `”` in a string is written with a backslash.
+- `allowed-values` accepts numbers as well as text. The JSON Notation specification describes its comparisons, and how its values and several directives on one column combine.
 - The registry's `id` directive accepts a cell reference as its group name, like every other argument.
 
 ## 0.1.0
