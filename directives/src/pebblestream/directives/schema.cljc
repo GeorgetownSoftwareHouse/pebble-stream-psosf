@@ -705,14 +705,52 @@
   "Directives that are deprecated. header-map is not deprecated."
   #{:header-count :group-unique :group-sum :group-ratio :split :div-0 :coalesce})
 
+(def once-per-worksheet
+  "Directives that may appear at most once on a worksheet: the transformative
+   directives that work with from, and the connector verbs, since a connector
+   sheet has exactly one verb. Directives that write a column (the group
+   sub-directives and paths-operation) may repeat, as long as each writes a
+   different column; see write-conflicts."
+  #{:from :cartesian-product :join :outer-join :group :sort :header-map
+    :paths :apportion :relieve
+    :expand :generate-rows :match-rows :template-name :workflow-filter
+    :http :files :sql :queue :email})
+
+(def once-per-spreadsheet
+  "Directives that may appear on only one worksheet of a spreadsheet. Each may
+   appear once, except workflow-group, which annotates every column of the
+   group key on that one worksheet."
+  #{:workflow-all :workflow-each :workflow-group :workflow-iterate})
+
+(defn- pivot-exclusions
+  "pivot cannot be used with any other group sub-directive. Derived from the
+   registry, so a sub-directive added later is excluded automatically, and
+   written on both sides so every exclusion is listed both ways."
+  [entries]
+  (let [others (set (for [[k e] entries
+                          :when (and (contains? (:requires e) :group) (not= k :pivot))]
+                      k))]
+    (reduce (fn [m k] (update-in m [k :excludes] (fnil conj #{}) :pivot))
+            (update-in entries [:pivot :excludes] (fnil into #{}) others)
+            others)))
+
+(defn- mark-once [entries]
+  (let [mark (fn [entries ks flag]
+               (reduce (fn [m k] (cond-> m (contains? m k) (assoc-in [k flag] true))) entries ks))]
+    (-> entries
+        (mark once-per-worksheet :once-per-worksheet)
+        (mark once-per-spreadsheet :once-per-spreadsheet))))
+
 (def all-directives
   (update-vals
-   (reduce (fn [m k] (assoc-in m [k :status] :deprecated))
+   (mark-once
+    (pivot-exclusions
+    (reduce (fn [m k] (assoc-in m [k :status] :deprecated))
            (merge (update-vals directives #(assoc % :pebblestream/source :supplied-spec))
                   (update-vals documented-directives #(assoc % :pebblestream/source :documentation))
                   (update-vals connector-directives #(assoc % :pebblestream/source :design))
                   missing-directives)
-           deprecated-directives)
+           deprecated-directives)))
    normalize-syntax))
 
 ;; ========================================================
@@ -738,7 +776,7 @@
    {:step 5  :directive :filter}
    {:step 6  :directive :sort}
    {:step 7  :directive :group
-    :within #{:sum :ratio :mult :equal :regex :coalesce}}  ; unordered: their relative order does not matter
+    :within #{:sum :ratio :mult :equal :regex :coalesce :yield :npv :pivot}}  ; unordered: their relative order does not matter
    {:step 8  :directive :group-unique :status :deprecated}
    {:step 9  :directive :group-sum    :status :deprecated}
    {:step 10 :directive :group-ratio  :status :deprecated}
@@ -832,6 +870,34 @@
 ;; Scope
 ;; ========================================================
 
+(defn once-per-worksheet-errors
+  "Given the parsed directives on one worksheet, an error for each directive
+   that may appear only once but appears more often."
+  [worksheet-directives]
+  (for [[k n] (frequencies (map :directive worksheet-directives))
+        :when (and (> n 1) (get-in all-directives [k :once-per-worksheet]))]
+    {:directive k :count n
+     :message (str "pebblestream:" (name k) " may be used only once per worksheet; it appears " n " times.")}))
+
+(defn once-per-spreadsheet-errors
+  "Given a map of worksheet name to that worksheet's parsed directives, an
+   error for each directive that may appear on only one worksheet but appears
+   on several, or that appears more than once where only once is allowed."
+  [sheets->directives]
+  (let [found (for [[sheet ds] sheets->directives d ds
+                    :when (get-in all-directives [(:directive d) :once-per-spreadsheet])]
+                [(:directive d) sheet])]
+    (for [[k pairs] (group-by first found)
+          :let [sheets (distinct (map second pairs))]
+          :when (or (> (count sheets) 1)
+                    (and (> (count pairs) 1) (not= :workflow-group k)))]
+      {:directive k :sheets (vec sheets) :count (count pairs)
+       :message (if (> (count sheets) 1)
+                  (str "pebblestream:" (name k) " may appear on only one worksheet; it appears on "
+                       (clojure.string/join ", " sheets) ".")
+                  (str "pebblestream:" (name k) " may be used only once in a spreadsheet; it appears "
+                       (count pairs) " times."))})))
+
 (def column-scoped
   "Directives that apply to the column they annotate and may appear on more
    than one column of a worksheet."
@@ -904,8 +970,41 @@
 
 (def group-write-ambiguity
   (str "Assumed that sum, ratio, mult and equal write to their source column when no new column is given. "
-       "Unconfirmed, as is whether directives that require group but are not listed within the group step "
-       "(min, max, average, balance, expand, yield, npv, pivot) follow the same rule."))
+       "Unconfirmed, as is whether min, max, average and balance run within the group step. "
+       "pivot's target columns are unknown, so pivot is not checked for conflicts."))
+
+(defn write-conflicts
+  "Given the parsed directives on one worksheet, the columns written by more
+   than one directive. A directive that writes a column (a group sub-directive
+   or paths-operation) may repeat, as long as each writes a different column."
+  [worksheet-directives]
+  (->> worksheet-directives
+       (mapcat (fn [d] (map (fn [t] [t (:directive d)]) (write-targets d))))
+       (group-by first)
+       (keep (fn [[column writers]]
+               (when (> (count writers) 1)
+                 {:column column :written-by (mapv second writers)})))))
+
+(def pivot-columns-ambiguity
+  (str "Assumed pivot's first argument is the category column and its third the value column. "
+       "Unconfirmed, as are the meanings of its other arguments (cell value, filter data type, filter value)."))
+
+(defn pivot-conflicts
+  "Given the parsed directives on one worksheet, an error for each category
+   column that pivot directives pull from more than one value column. Several
+   pivots may share a category column only if they share its value column."
+  [worksheet-directives]
+  (let [pivots (for [{:keys [directive args]} worksheet-directives
+                     :when (= :pivot directive)
+                     :let [category (first args) value (nth args 2 nil)]
+                     :when (and (string? category) (string? value))]
+                 [category value])]
+    (for [[category pairs] (group-by first pivots)
+          :let [values (vec (distinct (map second pairs)))]
+          :when (> (count values) 1)]
+      {:category-column category :value-columns values
+       :message (str "Pivots on the category column \"" category "\" pull from different value columns: "
+                     (clojure.string/join ", " values) ".")})))
 
 (defn group-write-conflicts
   "Given the parsed directives on one worksheet, the columns written by more
@@ -932,6 +1031,8 @@
    [:requires-any {:optional true} [:set :keyword]]
    [:excludes {:optional true} [:set :keyword]]
    [:status {:optional true} [:enum :active :disabled :deprecated :proposed]]
+   [:once-per-worksheet {:optional true} [:= true]]
+   [:once-per-spreadsheet {:optional true} [:= true]]
    [:args :any]
    [:pebblestream/source [:enum :supplied-spec :documentation :design :not-in-supplied-spec]]
    [:pebblestream/ambiguous {:optional true} :string]])
@@ -1052,6 +1153,7 @@
      {:where [:execution-order step directive] :reason (:pebblestream/ambiguous s)})
    [{:where [:worksheet-rule :group-write-targets] :reason group-write-ambiguity}
     {:where [:value-check :formula-cells] :reason formula-evaluated-ambiguity}
+    {:where [:worksheet-rule :pivot-columns] :reason pivot-columns-ambiguity}
     {:where [:worksheet-rule :declared-targets] :reason undeclared-targets-ambiguity}
     {:where  [:scope]
      :reason (str "Scope (worksheet or column, and whether it may appear on more than one column) "

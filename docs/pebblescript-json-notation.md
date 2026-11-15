@@ -36,8 +36,11 @@ Transformative directives on a worksheet always run in this fixed order:
    [sum](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#sum),
    [ratio](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#ratio),
    [mult](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#mult),
-   [equal](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#equal) and
-   [regex](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#regex). The order among these does not matter. They may read the same column, but no two may write to the same column.
+   [equal](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#equal),
+   [yield](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#yield),
+   [npv](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#npv),
+   [pivot](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#pivot) and
+   [regex](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#regex). The order among these does not matter. They may read the same column, but no two may write to the same column. `pivot` cannot be combined with any of the others.
 8. [group-unique](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#group-unique) (deprecated)
 9. [group-sum](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#group-sum) (deprecated)
 10. [group-ratio](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#group-ratio) (deprecated)
@@ -72,6 +75,14 @@ Annotative directives that do not check cell values, such as `hint`, `out` and t
 When writing JSON Notation, order directives in the sequence above for readability. The order of items in an annotation array preserves where comments sit; it never changes what the worksheet computes.
 
 The position of the remaining transformative directives in this order will be documented as it is confirmed.
+
+### Which directives may repeat
+
+These directives may appear only once on a worksheet: `from`, `cartesian-product`, `join`, `outer-join`, `group`, `sort`, `header-map`, `paths`, `apportion`, `relieve`, `expand`, `generate-rows`, `match-rows`, `template-name` and `workflow-filter`. To join a second worksheet, for example, join on an intermediate worksheet first.
+
+`workflow-all`, `workflow-each`, `workflow-group` and `workflow-iterate` may appear on only one worksheet in a spreadsheet, and only once, except that `workflow-group` annotates every column of the group key on that worksheet.
+
+Directives that write a column may repeat, as long as each writes a different column: the directives within `group` (such as `sum`, `yield`, `npv` and `pivot`) and `paths-operation`. `filter` and `prune` may also repeat; separate `filter` directives are combined with OR.
 
 ### Declared columns determine the result
 
@@ -483,22 +494,27 @@ pebblestream:yield("cash-flow", "date", "price", "settlement", "yield")
 
 `npv` has the same keys.
 
+`yield` and `npv` run within `group`, and each may be used more than once on a worksheet, as long as each writes a different column.
+
 #### pivot
 
+`pivot` runs within `group`, and cannot be combined with any other directive that runs within `group`. It may be used more than once on a worksheet. Pivots that share a category column must also share its value column: one category column cannot pull from different value columns.
+
 ```
-pebblestream:pivot("account", "amount", "period", "text", "Q1")
+pebblestream:pivot("period", "Q1", "amount", "number")
+pebblestream:pivot("period", "Q2", "amount", "number")
 ```
 ```json
 {"directive": "pivot",
- "column": "account", "value": "amount", "pivot-column": "period",
- "filter-type": "text", "filter-value": "Q1"}
+ "category-column": "period", "value": "Q1", "value-column": "amount",
+ "filter-type": "number"}
 ```
 
 | Key | Type | Required | Text position |
 |---|---|---|---|
-| `column` | header (*provisional*) | Yes | 1 |
+| `category-column` | header (*provisional*) | Yes | 1 |
 | `value` | cell value (*provisional*) | Yes | 2 |
-| `pivot-column` | header (*provisional*) | Yes | 3 |
+| `value-column` | header (*provisional*) | Yes | 3 |
 | `filter-type` | data type (*provisional*) | Yes | 4 |
 | `filter-value` | value (*provisional*) | No | 5 |
 
@@ -546,6 +562,8 @@ pebblestream:paths-operation("product", "effective-ownership")
 |---|---|---|---|
 | `operation` | paths operation | Yes | 1 |
 | `new-column` | header | Yes | 2 |
+
+`paths-operation` may be used more than once on a worksheet, as long as each writes a different column.
 
 ### Generating rows
 
@@ -717,7 +735,7 @@ These directives annotate the driving input worksheet, and decide how its rows a
 | `workflow-group` | Each column holding part of the group key | One execution per group of rows sharing the same key values, run in parallel. |
 | `workflow-all` | The driving input worksheet | One execution for all rows. This is the default, so it rarely needs to be written. |
 
-Only one of the three can be used in a spreadsheet.
+Only one of the three can be used in a spreadsheet, on one worksheet: the driving input worksheet.
 
 ```
 pebblestream:workflow-each
@@ -740,7 +758,7 @@ An iterative workflow runs repeatedly until it is told to stop. A spreadsheet co
 
 ##### workflow-iterate
 
-Runs the workflow a fixed number of times.
+Runs the workflow a fixed number of times. It may appear only once in a spreadsheet.
 
 ```
 pebblestream:workflow-iterate(10)
