@@ -27,7 +27,7 @@
    "call" :proposed
    "callback" :proposed
    "cartesian-product" :active
-   "coalesce" :active
+   "coalesce" :deprecated
    "column-oriented-headers" :active
    "date" :active
    "directory" :proposed

@@ -39,7 +39,7 @@
    may also be written bare:
      pebblestream:unique          (:bare, not deprecated)
      pebblestream:unique()        (:paren)
-     pebblestream:coalesce        (:bare)
+     pebblestream:expand          (:bare)
    The bare form is valid only with no arguments.
 
    Quoting: a quoted string is accepted for every string argument. A worksheet
@@ -76,25 +76,6 @@
   "Excel's sheet-name rules: 1–31 characters, none of \\ / ? * [ ] :"
   [:re "^[^\\\\/?*\\[\\]:]{1,31}$"])
 
-;; ========================================================
-;; allowed-values
-;; ========================================================
-
-(def ^:private comparison-re #"^(?:<=|>=|<>|<|>|=)")
-
-(defn allowed-values-comparison?
-  "True when an allowed-values argument is a comparison: text that begins with
-   an operator, such as \">=0\" or \"=75\"."
-  [x]
-  (and (string? x) (boolean (re-find comparison-re x))))
-
-(defn allowed-values-unmixed?
-  "True when an allowed-values directive's arguments are all comparisons or all
-   plain values. Cell references are resolved at run time and are not counted."
-  [args]
-  (let [plain? (fn [x] (or (number? x) (and (string? x) (not (allowed-values-comparison? x)))))]
-    (not (and (some allowed-values-comparison? args) (some plain? args)))))
-
 (def param-registry
   {:ps/sheet
    [:and {:description "The name of a worksheet in the same spreadsheet."}
@@ -126,12 +107,8 @@
    [:string {:description "The header of a column on the sheet named by the :pebblestream/sheet-ref parameter."}]
 
    :ps/allowed-value
-   [:or (merge {:description (str "A permitted value: text or a number, meaning equal to it, or a comparison "
-                                  "such as \">=0\" or \"<43\". The empty text permits blank cells. A directive holds comparisons or plain values, "
-                                  "not both: its comparisons must all hold, or the value must equal one of its "
-                                  "plain values. Separate allowed-values directives on a column combine with OR.")}
-               (ambiguous "Whether booleans and dates are accepted as typed literals is unconfirmed."))
-    :string number?]
+   [:string (merge {:description "One permitted value for the column."}
+                   (ambiguous "Whether numbers, booleans and dates are accepted as typed literals or only as strings is undocumented."))]
 
    :ps/predicate
    [:or {:description (str "A condition applied to the preceding column: a literal predicate such as \">0\" "
@@ -163,9 +140,9 @@
 
    :ps/cell-ref
    [:map (merge {:closed true
-                 :description "A cell reference given in place of a literal argument, parsed as {:ref \"Inputs!B2\"}. Always qualified by its worksheet name."}
+                 :description "A cell reference given in place of a literal argument, parsed as {:ref \"Inputs!B2\"}."}
                 (ambiguous "Unclear whether ranges, named ranges, whole columns or formulas are accepted, and whether the referenced cell is read at compile time or run time."))
-    [:ref [:re "^(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!\\$?[A-Za-z]{1,3}\\$?[0-9]+$"]]]
+    [:ref [:re "^(?:(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!)?\\$?[A-Za-z]{1,3}\\$?[0-9]+$"]]]
 
    :ps/filter-data-type
    [:string (ambiguous "Likely an enum of data types (text, number, boolean, date); undocumented.")]
@@ -332,24 +309,27 @@
    :mult    {:directive-type :transformative :syntax paren :requires #{:group} :args (group-aggregate)}
    :equal   {:directive-type :transformative :syntax paren :requires #{:group} :args (group-aggregate)}
 
+   ;; group collapses each group into one row by default; ratio is the one
+   ;; sub-directive that keeps every row of the group.
    :ratio
    {:directive-type :transformative :syntax paren :requires #{:group}
-    :excludes #{:coalesce}
     :args (group-aggregate)}
 
    :balance
    {:directive-type :transformative :syntax paren :requires #{:group}
-    :excludes #{:coalesce}
     :args [:cat (p :column-derived) (p :column-new) (p :column-new)]}
 
+   ;; Deprecated, kept for backward compatibility: group now coalesces by
+   ;; default, so coalesce is redundant alongside it. Existing workbooks that
+   ;; use it still compile; tools warn that it can be omitted.
    :coalesce
    {:directive-type :transformative :syntax paren :requires #{:group}
-    :excludes #{:expand :ratio :balance}
     :args no-args}
 
+   ;; expand makes group return every row of each group, with the group's
+   ;; computed values repeated on each row, instead of one row per group.
    :expand
    {:directive-type :transformative :syntax paren :requires #{:group}
-    :excludes #{:coalesce}
     :args no-args}
 
    :yield
@@ -432,15 +412,9 @@
    :do-not-compile    {:directive-type :annotative :syntax colon :args no-args}
    :out               {:directive-type :annotative :syntax colon :args no-args}
 
-   ;; A directive holds comparisons or plain values, never both; see
-   ;; allowed-values-unmixed?.
    :allowed-values
    {:directive-type :annotative :syntax colon
-    :args [:and
-           [:+ (p :allowed-value)]
-           [:fn {:error/message (str "An allowed-values directive holds comparisons or plain values, not both. "
-                                     "Put each kind in its own allowed-values directive.")}
-            #'allowed-values-unmixed?]]}
+    :args [:+ (p :allowed-value)]}
 
    :hint
    {:directive-type :annotative :syntax colon
@@ -679,8 +653,7 @@
    ;; several keys on one worksheet.
    :id
    {:directive-type :annotative :syntax colon
-    ;; Like every argument, the group name may be a cell reference.
-    :args [:cat [:? [:schema {:description "Key group name."} [:or :string :ps/cell-ref]]]]}
+    :args [:cat [:? [:schema {:description "Key group name."} :string]]]}
 
    ;; How Flow divides the driving input worksheet among executions.
    :workflow-each  {:directive-type :annotative :syntax colon :excludes #{:workflow-all :workflow-group} :args no-args}
@@ -730,7 +703,7 @@
 
 (def ^:private deprecated-directives
   "Directives that are deprecated. header-map is not deprecated."
-  #{:header-count :group-unique :group-sum :group-ratio :split :div-0})
+  #{:header-count :group-unique :group-sum :group-ratio :split :div-0 :coalesce})
 
 (def all-directives
   (update-vals
@@ -765,7 +738,7 @@
    {:step 5  :directive :filter}
    {:step 6  :directive :sort}
    {:step 7  :directive :group
-    :within #{:coalesce :sum :ratio :mult :equal :regex}}  ; unordered: their relative order does not matter
+    :within #{:sum :ratio :mult :equal :regex :coalesce}}  ; unordered: their relative order does not matter
    {:step 8  :directive :group-unique :status :deprecated}
    {:step 9  :directive :group-sum    :status :deprecated}
    {:step 10 :directive :group-ratio  :status :deprecated}
@@ -992,8 +965,9 @@
 (def syntax-ambiguities
   "Ambiguities about surface syntax that no single schema can carry."
   [{:where  [:syntax :cell-references]
-    :reason (str "Any argument may be a worksheet-qualified cell reference, written unquoted in text (Inputs!B2). "
-                 "Unconfirmed whether a reference may be combined with literals (\">\"&Inputs!B2).")}
+    :reason (str "Any argument may be a cell reference. Assumed written unquoted in text (Inputs!B2), "
+                 "as in an Excel formula, so quoting is what distinguishes a reference from a string. "
+                 "Unconfirmed, as is whether a reference may be combined with literals (\">\"&Inputs!B2).")}
    {:where  [:directive :div-0]
     :reason "Written pebblestream:div/0; keyed here as :div-0 because '/' cannot appear in a keyword's name."}
    {:where  [:directive :sheet-role]

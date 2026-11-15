@@ -33,7 +33,6 @@ Transformative directives on a worksheet always run in this fixed order:
 5. [filter](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#filter)
 6. [sort](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#sort)
 7. [group](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#group), together with the directives that run within it:
-   [coalesce](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#coalesce),
    [sum](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#sum),
    [ratio](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#ratio),
    [mult](https://github.com/GeorgetownSoftwareHouse/pebble-stream-documentation#mult),
@@ -150,12 +149,9 @@ pebblestream:generate-rows('Run Settings'!$B$1)
 
 The object form keeps a reference distinct from a string that happens to look like one: `{"ref": "Inputs!B2"}` is a reference, while `"Inputs!B2"` is the literal text `Inputs!B2`.
 
-In textual PebbleScript, the worksheet name is what tells a reference from a name. A header such as `Q1` or `ID5` is also a valid cell address, so an unqualified address is always read as a name: `pebblestream:group(ID5)` groups by the header `ID5`, and `pebblestream:group(Setup!ID5)` groups by the header held in cell `ID5` of `Setup`.
-
 Rules:
 
-- `ref` holds one cell, qualified by the name of its worksheet and optionally absolute (`Inputs!B2`, `Inputs!$B$2`, `'Run Settings'!$B$1`). The worksheet name is required. A sheet name containing spaces or punctuation is enclosed in single quotes, with any single quote inside it doubled, as in Excel.
-- A cell address without a worksheet name, such as `B2`, is not a reference.
+- `ref` holds one cell, optionally qualified by a sheet name and optionally absolute (`B2`, `$B$2`, `Inputs!B2`). A sheet name containing spaces or punctuation is enclosed in single quotes, with any single quote inside it doubled, as in Excel.
 - A reference can stand anywhere a literal can, including inside arrays (`{"directive": "from", "sheets": [{"ref": "Setup!A2"}, "Accounts"]}`) and inside repeated groups.
 - In the catalog's key tables, each key's type describes the literal it accepts. Every key also accepts a reference.
 
@@ -204,7 +200,7 @@ The colon form (`pebblestream:name:a,b`) is deprecated and is never produced.
 
 A converter accepts every form textual PebbleScript allows: bare, parentheses, and the deprecated colon form. Which form was used is not recorded in JSON Notation.
 
-A quoted argument becomes a string. A worksheet or column name that contains no space may also be written without quotes (`pebblestream:from(Accounts)`), and becomes the same string. An unquoted number becomes a number, an unquoted reference qualified by its worksheet name (`Inputs!B2`) becomes a `{"ref": ...}` object, and an operator joined to a header with `&` becomes a column predicate object. An unquoted cell address without a worksheet name, such as `Q1`, is a name and becomes a string.
+A quoted argument becomes a string. A worksheet or column name that contains no space may also be written without quotes (`pebblestream:from(Accounts)`), and becomes the same string. An unquoted number becomes a number, an unquoted cell reference becomes a `{"ref": ...}` object, and an operator joined to a header with `&` becomes a column predicate object.
 
 ### Quotes and backslashes in text
 
@@ -217,16 +213,6 @@ Inside a quoted string argument:
 A backslash before any other character is removed, so `"C:\data"` reads as `C:data`. Because that is rarely what was meant, the compiler warns whenever it happens.
 
 When converting JSON to text, a string is written with its quotes doubled and its backslashes doubled, so it always reads back exactly and never draws the warning. A name written without quotes must contain no space; quote any name that contains punctuation.
-
-### Typographic quotes
-
-Spreadsheet applications and operating systems often replace straight quotes with typographic ones as a note is typed, so `pebblestream:filter("Product", "12"" pipe")` may arrive as `pebblestream:filter(“Product”, “12”” pipe”)`. Both read the same way:
-
-- `“` and `”` are read as the straight double quote `"`. They open and close strings, and two together inside a string are one quote character.
-- `‘` and `’` are read as the straight single quote `'` where they enclose the worksheet name of a cell reference: `‘Run Settings’!$B$1` is `'Run Settings'!$B$1`. Anywhere else, including inside a string, they are ordinary characters, so `“O’Brien”` is the text `O’Brien`.
-- To include `“` or `”` in a string, write a backslash before it: `"Say \“hi\”"` is `Say “hi”`.
-
-When converting JSON to text, `“` and `”` in a string are written with a backslash, so the text reads back exactly.
 
 ### Round trips
 
@@ -374,6 +360,10 @@ pebblestream:header-map("Acct No", "account", "Bal", "amount")
 
 #### group
 
+`group` collapses the worksheet's rows into one row per group: one row for each distinct combination of values in the grouping columns. Groups appear in the order their first row appears, the same way every time. The directives that run within `group`, such as `sum`, compute a value for each group.
+
+Two directives keep the group's rows instead of collapsing them: `ratio`, the one sub-directive that does so, and [`expand`](#expand), which returns every row of each group alongside its computed values.
+
 ```
 pebblestream:group("fund", "type")
 ```
@@ -440,16 +430,36 @@ pebblestream:balance("amount", "debit", "credit")
 | `new-column-1` | header (*provisional*) | Yes | 2 |
 | `new-column-2` | header (*provisional*) | Yes | 3 |
 
-#### coalesce and expand
+#### expand
+
+`expand` makes `group` return every row of each group, with the group's computed values repeated on each row, instead of one row per group. Each row then carries its group's totals directly, so later formulas on the worksheet need no lookup to find them.
+
+For example, an `Order` worksheet has three rows for order `o1`, with amounts 1, 2 and 3. A worksheet with these directives:
 
 ```
-pebblestream:coalesce
+pebblestream:from("Order")
+pebblestream:group("order id")
+pebblestream:sum("amount", "total")
+```
+
+returns one row: `o1` with a total of 6. Adding `pebblestream:expand` returns all three rows, each with the group's total:
+
+| order id | amount | total |
+|---|---|---|
+| o1 | 1 | 6 |
+| o1 | 2 | 6 |
+| o1 | 3 | 6 |
+
+A formula column such as `share` (`=B2/C2`) can then compute each row's share of its order directly.
+
+```
+pebblestream:expand
 ```
 ```json
-{"directive": "coalesce"}
+{"directive": "expand"}
 ```
 
-No keys. `expand` is the same.
+No keys.
 
 #### yield and npv
 
@@ -621,19 +631,6 @@ pebblestream:sorted("desc", 2)
 
 #### allowed-values
 
-`allowed-values` stops execution if the column it annotates holds a value it does not permit. Each of its values is one of:
-
-- **A plain value**, text or a number, which means equal to that value. Text is quoted; a number is written without quotes. The empty text `""` permits blank cells; to refuse blank cells, use [`not-blank`](#directives-without-arguments).
-- **A comparison**, such as `">=0"`, `"<43"` or `"=75"`: a comparison operator followed by the value to compare with, written as quoted text, as in a filter's literal predicates. Numbers compare numerically, and text compares alphabetically.
-
-A directive holds comparisons or plain values, never both:
-
-- In a directive of comparisons, all of them must hold, so together they describe a range.
-- In a directive of plain values, the value must equal one of them.
-- A directive that mixes the two, such as `pebblestream:allowed-values(">80", 75)`, is refused. Put each kind in its own directive.
-
-A column may carry more than one `allowed-values` directive. A value is permitted when any one of them permits it, which is how a range and single values are combined.
-
 ```
 pebblestream:allowed-values("individual", "corporate")
 ```
@@ -641,21 +638,9 @@ pebblestream:allowed-values("individual", "corporate")
 {"directive": "allowed-values", "values": ["individual", "corporate"]}
 ```
 
-This column permits any number from 0 up to, but not including, 43, and also 75:
-
-```
-pebblestream:allowed-values(">=0", "<43")
-pebblestream:allowed-values(75)
-```
-```json
-{"directive": "allowed-values", "values": [">=0", "<43"]}
-
-{"directive": "allowed-values", "values": [75]}
-```
-
 | Key | Type | Required | Text position |
 |---|---|---|---|
-| `values` | array of plain values (text or numbers) or comparisons, at least one | Yes | All arguments |
+| `values` | array, at least one | Yes | All arguments |
 
 #### hint
 
@@ -866,7 +851,7 @@ Because every argument is named and every repeated group is an array of objects,
 }
 ```
 
-Here `#/$defs/cell-ref` is an object with one required key, `ref`, whose value is a worksheet-qualified cell reference as described under [Cell references](#cell-references), and no other keys.
+Here `#/$defs/cell-ref` is an object with one required key, `ref`, whose value matches the A1 notation described under [Cell references](#cell-references), and no other keys.
 
 JSON Schema checks the shape of a directive. It cannot check rules that depend on the spreadsheet, such as whether `source-column` exists on the sheet named in `sheet`, or whether a directive's requires and excludes are satisfied by the other directives on the worksheet. The compiler checks those; submit the worksheet to the compiler service's validate endpoint before deploying.
 
@@ -874,4 +859,4 @@ JSON Schema checks the shape of a directive. It cannot check rules that depend o
 
 ## Directives not yet in this notation
 
-The Board directives and the connector directives will be added once their signatures are confirmed. `div/0`, `header-count` and `split` are deprecated and have no JSON Notation. `regex` is disabled.
+The Board directives and the connector directives will be added once their signatures are confirmed. `div/0`, `header-count` and `split` are deprecated and have no JSON Notation. `coalesce` is deprecated too: `group` now collapses each group into one row by default, so `coalesce` is redundant alongside it. Worksheets that already use it continue to work; leave it out of new worksheets. `regex` is disabled.

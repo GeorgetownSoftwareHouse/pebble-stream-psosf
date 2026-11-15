@@ -34,11 +34,7 @@
    parser accepted parses to the same value here: that parser rejected any
    unescaped quote, so no string it accepted contained a doubled one.
 
-   A backslash before a typographic double quote (\u201C or \u201D) keeps that
-   character without a warning: it is how a literal typographic quote is
-   written, since an unescaped one is read as a delimiter.
-
-   A backslash before any other character than \" or \\ is accepted, as before,
+   A backslash before any character other than \" or \\ is accepted, as before,
    and also produces an :ambiguous-backslash warning naming its index in the
    trimmed text."
   [s]
@@ -55,8 +51,7 @@
                            (let [escaped (nth s (inc i))]
                              (recur (+ i 2)
                                     (conj! out escaped)
-                                    (if (or (= \" escaped) (= \\ escaped)
-                                            (= \u201C escaped) (= \u201D escaped))
+                                    (if (or (= \" escaped) (= \\ escaped))
                                       warnings
                                       (conj! warnings (ambiguous-backslash s i escaped))))))
                 (= \" c) (when (and (< (inc i) end) (= \" (nth s (inc i))))
