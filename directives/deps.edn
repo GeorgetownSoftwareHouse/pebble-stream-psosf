@@ -2,10 +2,15 @@
 ;; directive string parser.
 {:paths ["src"]
  :deps  {org.clojure/clojure {:mvn/version "1.11.4"}
-         metosin/malli       {:mvn/version "0.16.4"}}
+         metosin/malli       {:mvn/version "0.16.4"}
+         ;; the core library; replaced by its released coordinate when publishing
+         com.pebblestream/psosf {:local/root ".."}}
  :aliases
  {;; clojure -M:test   (from directives/)
   :test {:extra-paths ["test"]
          :main-opts   ["-m" "runner"
                        "pebblestream.parse-str-test"
-                       "pebblestream.directives.schema-test"]}}}
+                       "pebblestream.directives.schema-test"
+                       "pebblestream.directives.worksheet-rules-test"
+                       "pebblestream.directives.parse-test"
+                       "pebblestream.directives.check-test"]}}}

@@ -1,6 +1,9 @@
-;; Builds the npm package: an ES module in dist/, with fflate kept as an import.
-{:source-paths ["src"]
- :dependencies []
+;; The npm packages, both ES modules with fflate kept as an import:
+;;   npm        -> dist/                 @pebblestream/psosf
+;;   directives -> directives/npm/dist/  @pebblestream/psosf-directives
+;; and test-directives, which runs the directive check's tests under Node.
+{:source-paths ["src" "directives/src" "directives/test"]
+ :dependencies [[metosin/malli "0.16.4"]]
  :builds
  {:npm {:target     :esm
         :output-dir "dist"
@@ -10,4 +13,15 @@
                                        write       psosf.js/write
                                        unzip       psosf.js/unzip
                                        zip         psosf.js/zip
-                                       classifyZip psosf.js/classify-zip}}}}}}
+                                       classifyZip psosf.js/classify-zip}}}}
+
+  :directives {:target     :esm
+               :output-dir "directives/npm/dist"
+               :js-options {:js-provider :import}
+               :modules    {:psosf-directives {:exports {check     pebblestream.directives.js/check
+                                                         checkZip  pebblestream.directives.js/check-zip
+                                                         parseLine pebblestream.directives.js/parse-line}}}}
+
+  :test-directives {:target    :node-test
+                    :output-to "target/test-directives.js"
+                    :ns-regexp "pebblestream\\.directives\\.js-test$"}}}

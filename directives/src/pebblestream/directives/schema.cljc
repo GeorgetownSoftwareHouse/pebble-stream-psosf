@@ -31,7 +31,7 @@
    Syntax:
 
    A directive whose source :style is :colon accepts both forms,
-     pebblestream:name:a,b        (:colon, deprecated)
+     pebblestream:name:a:b        (:colon, deprecated; colons separate arguments)
      pebblestream:name(a, b)      (:paren)
    A directive whose source :style is :paren accepts only :paren.
 
@@ -53,7 +53,7 @@
    Exclusions are written on both directives: if A excludes B, B excludes A.
    `excludes-errors` reports any one-way pair."
   (:require
-   [clojure.string]
+   [clojure.string :as string]
    [malli.core :as m]
    [malli.error :as me]
    [malli.registry :as mr]
@@ -142,7 +142,8 @@
    [:map (merge {:closed true
                  :description "A cell reference given in place of a literal argument, parsed as {:ref \"Inputs!B2\"}."}
                 (ambiguous "Unclear whether ranges, named ranges, whole columns or formulas are accepted, and whether the referenced cell is read at compile time or run time."))
-    [:ref [:re "^(?:(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!)?\\$?[A-Za-z]{1,3}\\$?[0-9]+$"]]]
+    ;; A reference must name its worksheet; B2 on its own is not a reference.
+    [:ref [:re "^(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!\\$?[A-Za-z]{1,3}\\$?[0-9]+$"]]]
 
    :ps/filter-data-type
    [:string (ambiguous "Likely an enum of data types (text, number, boolean, date); undocumented.")]
@@ -215,7 +216,7 @@
   [:cat
    (p :sheet-named {:sheet-ref 0})
    ;; Column pairs are optional: without them, rows match on the headers both
-   ;; worksheets share. Each of join and outer-join may be used once per worksheet.
+   ;; worksheets share.
    [:*
     [:cat (p :column-derived {:unique 1}) (p :column-source {:unique 2 :sheet-ref 0})]]])
 
@@ -244,12 +245,15 @@
    {:directive-type :transformative :syntax paren :requires #{:from}
     :args [:+ (p :sheet {:unique 0})]}
 
+   ;; A worksheet has at most one join: one join or one outer-join, never both.
    :join
    {:directive-type :transformative :syntax paren :requires #{:from}
+    :excludes #{:outer-join}
     :args (join-args :join)}
 
    :outer-join
    {:directive-type :transformative :syntax paren :requires #{:from}
+    :excludes #{:join}
     :args (join-args :outer-join)}
 
    ;; ---- Transformative: row selection and ordering -----------------------
@@ -986,8 +990,8 @@
                  {:column column :written-by (mapv second writers)})))))
 
 (def pivot-columns-ambiguity
-  (str "Assumed pivot's first argument is the category column and its third the value column. "
-       "Unconfirmed, as are the meanings of its other arguments (cell value, filter data type, filter value)."))
+  (str "pivot's first argument is the category column and its third the value column. "
+       "The meanings of its other arguments (cell value, filter data type, filter value) are unconfirmed."))
 
 (defn pivot-conflicts
   "Given the parsed directives on one worksheet, an error for each category
@@ -1179,3 +1183,274 @@
                       (not (contains? missing-directives k)))]       ; reported under :directive
        {:where [:directive k :args path] :reason reason}))
    syntax-ambiguities))
+
+;; ========================================================
+;; Worksheet validation
+;; ========================================================
+;;
+;; Checks a whole spreadsheet against the worksheet rules. The input describes
+;; each worksheet by its headers, its parsed directives and its formulas:
+;;
+;;   {:sheets [{:name       "PerShareDistribution"
+;;              :headers    ["Fund ID" "Share Class" "Rate" "Per Share"]
+;;              :directives [{:directive :from :args ["ClassNIIWithShares"] :column "Fund ID"}
+;;                           {:directive :join :args ["ClassROCAllocation" "Fund ID" "Fund ID"] :column "Fund ID"}]
+;;              :formulas   {"Per Share" #{}}}]}       ; header -> worksheets its formulas refer to
+;;
+;; :formulas holds every column whose data cells contain formulas, mapped to
+;; the other worksheets those formulas refer to (an empty set when they refer
+;; to none). spreadsheet-errors returns errors as {:code :sheet :column
+;; :message :fix}; deprecated directives are reported as warnings.
+
+(defn- column-letter
+  "A zero-based column index as an Excel column letter: 0 -> A, 26 -> AA."
+  [i]
+  (loop [n (inc i) acc ""]
+    (if (zero? n) acc
+        (let [r (mod (dec n) 26)]
+          (recur (quot (dec n) 26) (str (char (+ 65 r)) acc))))))
+
+(defn- str-args [args] (filter string? args))
+
+(defn column-roles
+  "The header arguments of one directive, by role:
+     :source  headers that must exist in the worksheet's sources
+     :joined  [sheet header] pairs that must exist on the joined worksheet
+     :target  headers the directive writes, which must be declared here
+   Cell references and literal values are left out."
+  [{:keys [directive args]}]
+  (let [col  #(cond (string? %) % (map? %) (:column %))
+        ;; filter/prune/where: a lone column, or column and predicate pairs;
+        ;; a predicate may itself compare with another column
+        conds (fn [args]
+                (if (= 1 (count args))
+                  [(col (first args))]
+                  (mapcat (fn [[c pred]] (cond-> [(col c)] (and (map? pred) (:column pred)) (conj (:column pred))))
+                          (partition-all 2 args))))]
+    (case directive
+      (:group :group-unique :group-sum :group-ratio :paths :apportion :relieve)
+      {:source (str-args args)}
+      (:sum :min :max :average :mult :equal :ratio)
+      {:source [(first args)] :target (str-args (take 1 (rest args)))}
+      :balance  {:source [(first args)] :target (str-args (rest args))}
+      (:filter :prune) {:source (keep identity (conds args))}
+      :sort     {:source (keep col args)}
+      :header-map {:source (str-args (take-nth 2 args)) :target (str-args (take-nth 2 (rest args)))}
+      (:join :outer-join)
+      (let [[sheet & pairs] args]
+        {:source (str-args (take-nth 2 pairs))
+         :joined (for [c (take-nth 2 (rest pairs)) :when (string? c)] [sheet c])})
+      (:yield :npv) {:source (str-args (take 4 args)) :target (str-args (drop 4 args))}
+      :pivot    {:source (str-args [(first args) (nth args 2 nil)])}
+      :paths-operation {:target (str-args (rest args))}
+      {})))
+
+(defn- sources
+  "Worksheets a worksheet's transformation reads: from and cartesian-product
+   sources, and the joined worksheet."
+  [{:keys [directives]}]
+  {:from   (vec (mapcat #(str-args (:args %)) (filter #(#{:from :cartesian-product} (:directive %)) directives)))
+   :joined (vec (keep #(first (str-args (:args %))) (filter #(#{:join :outer-join} (:directive %)) directives)))})
+
+(defn- transformative? [sheet]
+  (some #(= :transformative (get-in all-directives [(:directive %) :directive-type])) (:directives sheet)))
+
+(defn- near-miss
+  "A header that matches s once units in parentheses are ignored, for a fix hint."
+  [s headers]
+  (let [strip #(string/trim (string/replace % #"\s*\([^)]*\)\s*$" ""))]
+    (first (filter #(and (not= % s) (= (strip %) (strip s))) headers))))
+
+(defn- err [code sheet column message & [fix]]
+  (cond-> {:code code :sheet sheet :message message}
+    column (assoc :column column)
+    fix    (assoc :fix fix)))
+
+(defn- sheet-directive-errors
+  "Repetition, exclusion and requirement errors within one worksheet."
+  [{:keys [name directives]}]
+  (let [present (set (map :directive directives))]
+    (concat
+     (for [{:keys [message]} (once-per-worksheet-errors directives)]
+       (err :repeated-directive name nil message))
+     (for [[a b] (distinct (for [a present b (get-in all-directives [a :excludes]) :when (present b)]
+                             (vec (sort [a b]))))]
+       (err :excluded-together name nil
+            (str "pebblestream:" (clojure.core/name a) " and pebblestream:" (clojure.core/name b)
+                 " cannot be used on the same worksheet.")
+            (when (= #{a b} #{:join :outer-join})
+              "Do the first join in an intermediate worksheet, and start this worksheet from it.")))
+     (for [d present
+           r (get-in all-directives [d :requires])
+           :when (not (present r))]
+       (err :missing-required name nil (str "pebblestream:" (clojure.core/name d) " requires pebblestream:" (clojure.core/name r) ".")))
+     (for [d present
+           :let [any (get-in all-directives [d :requires-any])]
+           :when (and (seq any) (not (some present any)))]
+       (err :missing-required name nil (str "pebblestream:" (clojure.core/name d) " requires one of "
+                                             (string/join ", " (map #(str "pebblestream:" (clojure.core/name %)) (sort any))) ".")))
+     (for [{:keys [column written-by]} (write-conflicts directives)]
+       (err :write-conflict name column (str "The column \"" column "\" is written by more than one directive: "
+                                             (string/join ", " (map clojure.core/name written-by)) ".")))
+     (for [{:keys [message category-column]} (pivot-conflicts directives)]
+       (err :pivot-conflict name category-column message)))))
+
+(defn- header-errors
+  "Directive header arguments that match no header, compared exactly."
+  [sheet by-name]
+  (let [{:keys [from joined]} (sources sheet)
+        headers-of #(get-in by-name [% :headers])
+        source-headers (set (mapcat headers-of (concat from joined)))
+        own (set (:headers sheet))
+        unknown (for [s (concat from joined) :when (not (contains? by-name s))]
+                  (err :unknown-worksheet (:name sheet) nil (str "No worksheet is named \"" s "\".")))
+        check (fn [d h pool where]
+                (when-not (contains? pool h)
+                  (let [hint (near-miss h pool)]
+                    (assoc (err :unknown-header (:name sheet) (:column d)
+                                (str "\"" h "\" is not a header of " where ". Header arguments must match exactly, including units.")
+                                (when hint (str "Did you mean \"" hint "\"?")))
+                           :argument h))))]
+    (concat
+     unknown
+     (when (and (seq from) (every? by-name (concat from joined)))
+       (for [d (:directives sheet)
+             :let [{:keys [source joined target]} (column-roles d)]
+             e (concat
+                (keep #(check d % source-headers "the source worksheets") source)
+                (keep (fn [[s h]] (when (contains? by-name s) (check d h (set (headers-of s)) (str "\"" s "\"")))) joined)
+                (keep #(check d % own "this worksheet") target))]
+         e)))))
+
+(defn- dependencies
+  "The worksheets a worksheet depends on: its transformation's sources, the
+   worksheet named by match-rows, and every worksheet its formulas refer to."
+  [sheet]
+  (let [{:keys [from joined]} (sources sheet)]
+    (-> (set (concat from joined))
+        (into (mapcat #(str-args (:args %)) (filter #(= :match-rows (:directive %)) (:directives sheet))))
+        (into (mapcat val (:formulas sheet)))
+        (disj (:name sheet)))))
+
+(defn- depends-on?
+  "True when worksheet a depends on worksheet b, directly or through others."
+  [graph a b]
+  (loop [seen #{} todo [a]]
+    (if-let [x (first todo)]
+      (cond (= x b) true
+            (seen x) (recur seen (rest todo))
+            :else    (recur (conj seen x) (into (vec (rest todo)) (get graph x))))
+      false)))
+
+(defn- directive-dependencies
+  "The worksheets a worksheet depends on through its directives alone."
+  [sheet]
+  (let [{:keys [from joined]} (sources sheet)]
+    (-> (set (concat from joined))
+        (into (mapcat #(str-args (:args %)) (filter #(= :match-rows (:directive %)) (:directives sheet))))
+        (disj (:name sheet)))))
+
+(defn- cycle-errors
+  "Cycles formed by directives alone, such as two worksheets each starting
+   from the other. Cycles closed by a formula are reported by reference-errors."
+  [sheets]
+  (let [graph (into {} (map (juxt :name directive-dependencies) sheets))]
+    (for [s sheets
+          :when (some #(depends-on? graph % (:name s)) (get graph (:name s)))]
+      (err :dependency-cycle (:name s) nil
+           (str "\"" (:name s) "\" depends on itself through its directives, so it can never be created.")))))
+
+(defn- reference-errors
+  "Formula references are dependencies too: referring to another worksheet,
+   by cell, column or range, makes that worksheet be created first. Any
+   reference is allowed as long as the dependencies form no cycle; a formula
+   that refers to a worksheet depending on its own closes one."
+  [sheets]
+  (let [graph (into {} (map (juxt :name dependencies) sheets))]
+    (for [s sheets
+          [h refs] (:formulas s)
+          r refs
+          :when (and (not= r (:name s)) (depends-on? graph r (:name s)))]
+      (err :reference-to-later-worksheet (:name s) h
+           (str "The formulas in \"" h "\" refer to \"" r "\", which depends on \"" (:name s)
+                "\", so the two worksheets form a cycle.")
+           "Refer only to worksheets that do not depend on this one, directly or through others."))))
+
+(defn- column-errors
+  "Formulas in transformed columns. A column that no directive fills and that
+   has no formula is allowed."
+  [sheet by-name]
+  ;; Skipped when a source worksheet is unknown: that is reported on its own,
+  ;; and without the source's headers no column can be judged.
+  (when (and (transformative? sheet)
+             (let [{:keys [from joined]} (sources sheet)] (every? by-name (concat from joined))))
+    (let [{:keys [from joined]} (sources sheet)
+          source-headers (set (mapcat #(get-in by-name [% :headers]) (concat from joined)))
+          targets (set (mapcat #(:target (column-roles %)) (:directives sheet)))
+          filled? #(or (contains? source-headers %) (contains? targets %))]
+      (concat
+       (for [[i h] (map-indexed vector (:headers sheet))
+             :when (and (filled? h) (contains? (:formulas sheet) h))]
+         (err :formula-in-transformed-column (:name sheet) h
+              (str "cell '" (:name sheet) "'!" (column-letter i) "2 has a formula, but its column is generated by directives.")
+              "Remove the formula: the directive fills this column. Give a generated column a header no directive fills."))))))
+
+(defn- ignore-errors
+  "ignore applies only to an isolated worksheet."
+  [sheets]
+  (let [refs-to (fn [s] (into (set (mapcat val (:formulas s)))
+                              (let [{:keys [from joined]} (sources s)] (concat from joined))))]
+    (for [s sheets
+          :when (some #(= :ignore (:directive %)) (:directives s))
+          :let [out (disj (refs-to s) (:name s))
+                in  (keep #(when (and (not= (:name %) (:name s)) (contains? (refs-to %) (:name s))) (:name %)) sheets)]
+          :when (or (seq out) (seq in))]
+      (err :ignore-on-connected-worksheet (:name s) nil
+           (str "pebblestream:ignore applies only to an isolated worksheet, but \"" (:name s) "\" is connected to "
+                (string/join ", " (map #(str "\"" % "\"") (sort (distinct (concat out in))))) ".")
+           "Remove the connecting formulas, or keep expected results as plain data or in the archive's tests."))))
+
+(defn- allowed-values-errors [{:keys [name directives]}]
+  (for [{:keys [directive args column]} directives
+        :when (= :allowed-values directive)
+        a args
+        :when (and (string? a) (= "blank" (string/lower-case (string/trim a))))]
+    (err :blank-in-allowed-values name column
+         "pebblestream:allowed-values has no keyword for an empty cell."
+         "Remove \"blank\". To require a value, use pebblestream:not-blank.")))
+
+(defn deprecated-replacement
+  "The replacement text for a deprecated group directive, or nil."
+  [{:keys [directive args]}]
+  (let [q (fn [xs] (string/join ", " (map #(str "\"" % "\"") xs)))]
+    (case directive
+      :group-sum    (str "pebblestream:group(" (q (butlast args)) ") and pebblestream:sum(" (q [(last args)]) ")")
+      :group-ratio  (str "pebblestream:group(" (q (butlast args)) ") and pebblestream:ratio(" (q [(last args)]) ")")
+      :group-unique (str "pebblestream:group(" (q args) ")")
+      :coalesce     "nothing: pebblestream:group already coalesces each group into one row"
+      nil)))
+
+(defn- deprecation-warnings [{:keys [name directives]}]
+  (for [d directives
+        :when (= :deprecated (get-in all-directives [(:directive d) :status]))]
+    (err :deprecated-directive name (:column d)
+         (str "pebblestream:" (clojure.core/name (:directive d)) " is deprecated.")
+         (when-let [r (deprecated-replacement d)] (str "Replace it with " r ".")))))
+
+(defn spreadsheet-errors
+  "Every worksheet-rule error and warning in a spreadsheet:
+   {:errors [...] :warnings [...]}."
+  [{:keys [sheets]}]
+  (let [by-name (into {} (map (juxt :name identity) sheets))]
+    {:errors   (vec (concat
+                     (mapcat sheet-directive-errors sheets)
+                     (for [{:keys [message]} (once-per-spreadsheet-errors
+                                              (into {} (map (juxt :name :directives) sheets)))]
+                       (err :repeated-directive nil nil message))
+                     (mapcat #(header-errors % by-name) sheets)
+                     (mapcat #(column-errors % by-name) sheets)
+                     (cycle-errors sheets)
+                     (reference-errors sheets)
+                     (ignore-errors sheets)
+                     (mapcat allowed-values-errors sheets)))
+     :warnings (vec (mapcat deprecation-warnings sheets))}))

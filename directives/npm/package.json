@@ -1,0 +1,28 @@
+{
+  "name": "@pebblestream/psosf-directives",
+  "version": "0.1.0",
+  "description": "Check PSOSF spreadsheets against the PebbleScript worksheet rules, and parse PebbleScript directives.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf.git",
+    "directory": "directives/npm"
+  },
+  "homepage": "https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf",
+  "keywords": ["psosf", "pebblescript", "spreadsheet", "excel", "lint", "pebble-stream"],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./dist/psosf-directives.js"
+    }
+  },
+  "types": "./index.d.ts",
+  "files": ["dist/", "index.d.ts", "LICENSE", "NOTICE", "README.md"],
+  "scripts": {
+    "prepack": "cp ../../LICENSE ../../NOTICE ."
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  }
+}

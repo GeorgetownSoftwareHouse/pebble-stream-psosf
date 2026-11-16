@@ -12,30 +12,44 @@
 
   test:directives
   {:doc  "Run the directive parser and schema tests (babashka)"
-   :task (do (require 'clojure.test 'pebblestream.parse-str-test 'pebblestream.directives.schema-test)
+   :task (do (require 'clojure.test 'pebblestream.parse-str-test 'pebblestream.directives.schema-test 'pebblestream.directives.worksheet-rules-test
+                      'pebblestream.directives.parse-test 'pebblestream.directives.check-test)
              (let [{:keys [fail error]} (clojure.test/run-tests 'pebblestream.parse-str-test
-                                                                'pebblestream.directives.schema-test)]
+                                                                'pebblestream.directives.schema-test
+                                                                'pebblestream.directives.worksheet-rules-test
+                                                                'pebblestream.directives.parse-test
+                                                                'pebblestream.directives.check-test)]
                (when (pos? (+ fail error)) (System/exit 1))))}
 
   test:cljs
   {:doc  "Run the ClojureScript tests with nbb"
    :task (shell "npx nbb --classpath src:test test/psosf/js_runner.cljs")}
 
+  test:cljs-directives
+  {:doc  "Run the directive check's ClojureScript tests (shadow-cljs and Node)"
+   :task (shell "npm run test:directives")}
+
   test
   {:doc     "Run every test suite"
-   :depends [test:jvm test:directives test:cljs]}
+   :depends [test:jvm test:directives test:cljs test:cljs-directives]}
 
   conformance:generate
   {:doc  "Regenerate the conformance cases from conformance/generate.clj"
    :task (shell "bb -cp src conformance/generate.clj")}
 
+  check
+  {:doc  "Check a PSOSF archive and print a JSON report: bb check FILE.psosf [--allow SUM,IF]"
+   :task (do (require 'pebblestream.directives.cli)
+             (System/exit ((resolve 'pebblestream.directives.cli/run) *command-line-args*)))}
+
   version:check
   {:doc  "Fail if package.json and VERSION disagree"
    :task (let [v   (string/trim (slurp "VERSION"))
-               pkg (second (re-find (re-pattern "\"version\":\\s*\"([^\"]+)\"") (slurp "package.json")))]
-           (when-not (= v pkg)
-             (println "VERSION is" v "but package.json is" pkg)
-             (System/exit 1)))}
+               pkg-version (fn [f] (second (re-find (re-pattern "\"version\":\\s*\"([^\"]+)\"") (slurp f))))]
+           (doseq [f ["package.json" "directives/npm/package.json"]]
+             (when-not (= v (pkg-version f))
+               (println "VERSION is" v "but" f "is" (pkg-version f))
+               (System/exit 1))))}
 
   jar
   {:doc     "Build both jars with tools.build (needs the Clojure CLI and a JDK)"
@@ -48,10 +62,10 @@
    :task    (clojure "-T:build install")}
 
   npm
-  {:doc     "Build the npm package with shadow-cljs into dist/"
+  {:doc     "Build both npm packages with shadow-cljs: dist/ and directives/npm/dist/"
    :depends [version:check]
    :task    (do (shell "npm install")
-                (shell "npx shadow-cljs release npm"))}
+                (shell "npx shadow-cljs release npm directives"))}
 
   build
   {:doc     "Test everything, then build the jars and the npm package"

@@ -855,7 +855,7 @@ When generating a PSOSF archive:
 1. Write `manifest.json` first, listing every worksheet in `sheets`.
 2. Give every line of a worksheet file exactly as many fields as there are headers. In line 3, leave a field blank for an unstyled column (for four unstyled columns, `,,,`). To style a column, copy a style from a palette; never invent a preview or other palette metadata.
 3. Quote any field that contains a comma, a double quote or a line break, and double every quote inside it. Annotations with directives almost always need quoting, because directive arguments are quoted strings.
-4. Remember that PebbleScript is declarative: transformative directives run in a fixed order, not the order they are written. See [PebbleScript JSON Notation](https://docs.pebblestream.com/docs/pebblescript-json-notation#pebblescript-is-declarative) for the order.
+4. Remember that PebbleScript is declarative: transformative directives run in a fixed order, not the order they are written. See [PebbleScript Reference](https://docs.pebblestream.com/docs/pebblescript-reference#pebblescript-is-declarative) for the order.
 5. Put each directive on its own line within the annotation, starting with `pebblestream:`. Any other line in the annotation is a comment. Write worksheet-level directives in the first column's annotation.
 6. Write cell references in worksheet coordinates: the first data line (line 5) is row 2.
 7. Write dates as `YYYY-MM-DD`, booleans as `TRUE`/`FALSE`, and numbers without separators or symbols.

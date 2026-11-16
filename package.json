@@ -8,7 +8,13 @@
     "url": "git+https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf.git"
   },
   "homepage": "https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf",
-  "keywords": ["psosf", "spreadsheet", "excel", "csv", "pebble-stream"],
+  "keywords": [
+    "psosf",
+    "spreadsheet",
+    "excel",
+    "csv",
+    "pebble-stream"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -17,10 +23,18 @@
     }
   },
   "types": "./index.d.ts",
-  "files": ["dist/", "index.d.ts", "LICENSE", "NOTICE", "README.md"],
+  "files": [
+    "dist/",
+    "index.d.ts",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
   "scripts": {
     "build": "shadow-cljs release npm",
-    "test": "nbb --classpath src:test test/psosf/js_runner.cljs"
+    "build:directives": "shadow-cljs release directives",
+    "test": "nbb --classpath src:test test/psosf/js_runner.cljs",
+    "test:directives": "shadow-cljs compile test-directives && node target/test-directives.js"
   },
   "dependencies": {
     "fflate": "^0.8.2"

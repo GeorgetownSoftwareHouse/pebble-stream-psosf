@@ -4,6 +4,9 @@
 .lsp/.cache/
 .nrepl-port
 .shadow-cljs/
+directives/npm/LICENSE
+directives/npm/NOTICE
+directives/npm/dist/
 dist/
 node_modules/
 target/
