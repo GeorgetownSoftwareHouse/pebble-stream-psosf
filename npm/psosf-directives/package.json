@@ -6,10 +6,17 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf.git",
-    "directory": "directives/npm"
+    "directory": "npm/psosf-directives"
   },
   "homepage": "https://github.com/GeorgetownSoftwareHouse/pebble-stream-psosf",
-  "keywords": ["psosf", "pebblescript", "spreadsheet", "excel", "lint", "pebble-stream"],
+  "keywords": [
+    "psosf",
+    "pebblescript",
+    "spreadsheet",
+    "excel",
+    "lint",
+    "pebble-stream"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -18,7 +25,13 @@
     }
   },
   "types": "./index.d.ts",
-  "files": ["dist/", "index.d.ts", "LICENSE", "NOTICE", "README.md"],
+  "files": [
+    "dist/",
+    "index.d.ts",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
   "scripts": {
     "prepack": "cp ../../LICENSE ../../NOTICE ."
   },

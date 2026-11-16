@@ -245,14 +245,16 @@ pebble-stream-psosf/
 ├── test/                      JVM and ClojureScript tests, and the test runners
 ├── directives/
 │   ├── src/pebblestream/      the directive registry, parsers and the check
-│   ├── test/                  their tests
-│   └── npm/                   the @pebblestream/psosf-directives package and its types
+│   └── test/                  their tests
+├── npm/
+│   ├── psosf/                 the @pebblestream/psosf package: package.json, index.d.ts, README
+│   └── psosf-directives/      the @pebblestream/psosf-directives package
 ├── conformance/               language-neutral cases every binding must pass
 ├── schema/                    the JSON Schema of the API contract, version 1
 ├── docs/                      the PSOSF specification and the PebbleScript Reference
 ├── build.clj                  jar builds (tools.build)
 ├── shadow-cljs.edn            the npm builds
-├── package.json, index.d.ts   the npm package and its TypeScript types
+├── package.json               the npm workspace for development (private, never published)
 ├── bb.edn                     development tasks
 └── VERSION                    the release version, shared by every artifact
 ```
@@ -266,10 +268,12 @@ Requires a JDK (11 or later), the [Clojure CLI](https://clojure.org/guides/insta
 | `bb test` | Every test suite: JVM, directives, and both ClojureScript suites |
 | `bb jar` | Both jars, in `target/` |
 | `bb install` | Both jars into the local Maven repository |
-| `bb npm` | Both npm packages, in `dist/` and `directives/npm/dist/` |
+| `bb npm` | Both npm packages, in `npm/psosf/dist/` and `npm/psosf-directives/dist/` |
 | `bb build` | All tests, then all builds |
 | `bb check FILE.psosf` | Check an archive for errors and print a JSON report |
 | `bb clean` | Remove build output |
 | `bb conformance:generate` | Regenerate the conformance cases |
 
-The version lives in `VERSION`; `bb jar` and `bb npm` refuse to build if `package.json` disagrees.
+To publish the npm packages after `bb npm`, from the repository root: `npm publish --workspace npm/psosf --access public`, then the same for `npm/psosf-directives`. Scoped packages are private on npm unless published with `--access public`.
+
+The version lives in `VERSION`; `bb jar` and `bb npm` refuse to build if any `package.json` disagrees.

@@ -46,7 +46,7 @@
   {:doc  "Fail if package.json and VERSION disagree"
    :task (let [v   (string/trim (slurp "VERSION"))
                pkg-version (fn [f] (second (re-find (re-pattern "\"version\":\\s*\"([^\"]+)\"") (slurp f))))]
-           (doseq [f ["package.json" "directives/npm/package.json"]]
+           (doseq [f ["package.json" "npm/psosf/package.json" "npm/psosf-directives/package.json"]]
              (when-not (= v (pkg-version f))
                (println "VERSION is" v "but" f "is" (pkg-version f))
                (System/exit 1))))}
@@ -62,7 +62,7 @@
    :task    (clojure "-T:build install")}
 
   npm
-  {:doc     "Build both npm packages with shadow-cljs: dist/ and directives/npm/dist/"
+  {:doc     "Build both npm packages with shadow-cljs, into npm/psosf/dist/ and npm/psosf-directives/dist/"
    :depends [version:check]
    :task    (do (shell "npm install")
                 (shell "npx shadow-cljs release npm directives"))}
@@ -74,4 +74,4 @@
   clean
   {:doc  "Remove build output"
    :task (do (clojure "-T:build clean")
-             (shell "rm -rf dist .shadow-cljs"))}}}
+             (shell "rm -rf npm/psosf/dist npm/psosf-directives/dist .shadow-cljs"))}}}

@@ -27,4 +27,5 @@ jobs:
           name: build
           path: |
             target/*.jar
-            dist/
+            npm/psosf/dist/
+            npm/psosf-directives/dist/

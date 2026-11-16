@@ -1,12 +1,12 @@
 ;; The npm packages, both ES modules with fflate kept as an import:
-;;   npm        -> dist/                 @pebblestream/psosf
-;;   directives -> directives/npm/dist/  @pebblestream/psosf-directives
+;;   npm        -> npm/psosf/dist/             @pebblestream/psosf
+;;   directives -> npm/psosf-directives/dist/  @pebblestream/psosf-directives
 ;; and test-directives, which runs the directive check's tests under Node.
 {:source-paths ["src" "directives/src" "directives/test"]
  :dependencies [[metosin/malli "0.16.4"]]
  :builds
  {:npm {:target     :esm
-        :output-dir "dist"
+        :output-dir "npm/psosf/dist"
         :js-options {:js-provider :import}
         :modules    {:psosf {:exports {classify    psosf.js/classify
                                        read        psosf.js/read
@@ -16,7 +16,7 @@
                                        classifyZip psosf.js/classify-zip}}}}
 
   :directives {:target     :esm
-               :output-dir "directives/npm/dist"
+               :output-dir "npm/psosf-directives/dist"
                :js-options {:js-provider :import}
                :modules    {:psosf-directives {:exports {check     pebblestream.directives.js/check
                                                          checkZip  pebblestream.directives.js/check-zip
